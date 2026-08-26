@@ -8,6 +8,7 @@ import { AppShell } from "../components/shared/AppShell";
 // Import Patient verify sub-pages
 import Scan from "../routes/verify/Scan";
 import ScanHistory from "../routes/verify/ScanHistory";
+import QRVerify from "../routes/verify/QRVerify";
 
 import "../App.css";
 import "../index.css";
@@ -19,6 +20,8 @@ function VerifyAppLayout() {
   useEffect(() => {
     if (location.pathname === "/history") {
       setActiveTab("Scan History");
+    } else if (location.pathname === "/qr") {
+      setActiveTab("Verify Delivery QR");
     } else {
       setActiveTab("Verify Scan");
     }
@@ -28,6 +31,7 @@ function VerifyAppLayout() {
     <AppShell activeTab={activeTab}>
       <Routes>
         <Route path="/" element={<Scan />} />
+        <Route path="/qr" element={<QRVerify />} />
         <Route path="/history" element={<ScanHistory />} />
         <Route path="*" element={<Scan />} />
       </Routes>

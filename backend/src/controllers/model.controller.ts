@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 
 import { asyncHandler } from "../utils/async-handler.js";
 import { ModelVersionModel } from "../models/model-version.model.js";
+import { verifyBatchWithLLM } from "../services/ai.service.js";
 
 export const list = asyncHandler(async (_req: Request, res: Response) => {
   const items = await ModelVersionModel.find().sort({ createdAt: -1 }).limit(20);
@@ -28,3 +29,14 @@ export const retrain = asyncHandler(async (_req: Request, res: Response) => {
   });
   res.status(202).json({ item });
 });
+
+export const llmVerify = asyncHandler(async (req: Request, res: Response) => {
+  const payload = req.body;
+  if (!payload.key) {
+    res.status(400).json({ error: { message: "Batch key is required for verification." } });
+    return;
+  }
+  const analysisReport = await verifyBatchWithLLM(payload);
+  res.json({ analysisReport });
+});
+

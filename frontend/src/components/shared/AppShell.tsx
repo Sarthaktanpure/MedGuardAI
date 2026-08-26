@@ -33,6 +33,7 @@ export function AppShell({ children, activeTab }: { children: React.ReactNode; a
   const menuItems = React.useMemo(() => {
     const common = [
       { name: "Verify Scan", icon: <ScanLine className="h-4 w-4" />, href: "/verify#/" },
+      { name: "Verify Delivery QR", icon: <ScanLine className="h-4 w-4" />, href: "/verify#/qr" },
       { name: "Scan History", icon: <Activity className="h-4 w-4" />, href: "/verify#/history" },
       { name: "Track Delivery", icon: <Compass className="h-4 w-4" />, href: "/tracking#/" },
     ];
@@ -70,13 +71,15 @@ export function AppShell({ children, activeTab }: { children: React.ReactNode; a
   }, [user]);
 
   // Fast role swapping helper for easy demoing/judging
-  const handleRoleSwap = async (role: "patient" | "manufacturer" | "regulator" | "admin") => {
+  const handleRoleSwap = async (role: "patient" | "pharmacist" | "manufacturer" | "regulator" | "admin") => {
     toast.info(`Swapping profile to ${role}...`, "Role Switcher");
     await login(`${role}@medguard.org`, role);
     toast.success(`Success! Swapped session to ${role}.`, "Role Switcher");
     // Redirect based on role to avoid route conflicts
     if (role === "patient") {
       window.location.href = "/verify#/";
+    } else if (role === "pharmacist") {
+      window.location.href = "/verify#/qr";
     } else {
       window.location.href = `/dashboard#/${role}`;
     }
@@ -144,7 +147,7 @@ export function AppShell({ children, activeTab }: { children: React.ReactNode; a
             Inspect As (Judge Mode)
           </span>
           <div className="grid grid-cols-2 gap-1.5">
-            {(["patient", "manufacturer", "regulator", "admin"] as const).map((r) => (
+            {(["patient", "pharmacist", "manufacturer", "regulator", "admin"] as const).map((r) => (
               <button
                 key={r}
                 onClick={() => handleRoleSwap(r)}

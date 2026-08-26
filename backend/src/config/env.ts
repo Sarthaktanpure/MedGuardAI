@@ -8,7 +8,8 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().optional(),
   COOKIE_SECRET: z.string().optional(),
   JWT_ACCESS_SECRET: z.string().default("change-me-access"),
-  JWT_REFRESH_SECRET: z.string().default("change-me-refresh")
+  JWT_REFRESH_SECRET: z.string().default("change-me-refresh"),
+  GEMINI_API_KEY: z.string().optional()
 });
 
 export const env = envSchema.parse(process.env);

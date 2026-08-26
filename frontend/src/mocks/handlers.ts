@@ -153,6 +153,25 @@ let mockAuditLogs: AuditLog[] = [
   },
 ];
 
+let mockTrackingEvents = [
+  {
+    _id: "tr-1",
+    trackingId: "MG-DEL-001",
+    status: "Registered",
+    location: "Pfizer Dublin Facility",
+    note: "Batch recorded on smart contract registry. Dispensation authorized.",
+    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+  {
+    _id: "tr-2",
+    trackingId: "MG-DEL-001",
+    status: "In Transit",
+    location: "Dublin Transit Hub",
+    note: "Customs cleared. Dispatched via temperature-controlled air freight.",
+    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+  },
+];
+
 // Helper wrapper for base API path
 const API_PREFIX = "/api/v1";
 
@@ -386,5 +405,69 @@ export const handlers = [
 
   http.get(`${API_PREFIX}/admin/audit-logs`, () => {
     return HttpResponse.json(mockAuditLogs);
+  }),
+
+  // 8. Tracking Endpoints (Mock)
+  http.get(`${API_PREFIX}/tracking/:trackingId`, ({ params }) => {
+    const events = mockTrackingEvents.filter((e) => e.trackingId === params.trackingId);
+    if (events.length === 0) {
+      // Return 404 but try checking if we can mock a direct delivery ID
+      return HttpResponse.json({ error: { code: "NOT_FOUND", message: "Tracking ID not found" } }, { status: 404 });
+    }
+    return HttpResponse.json({ items: events });
+  }),
+
+  http.post(`${API_PREFIX}/tracking/events`, async ({ request }) => {
+    const { trackingId, status, location, note } = (await request.json()) as any;
+    const newEvent = {
+      _id: "tr-" + Math.random().toString(36).substring(2, 9),
+      trackingId,
+      status,
+      location: location ?? "",
+      note: note ?? "",
+      createdAt: new Date().toISOString(),
+    };
+    mockTrackingEvents.push(newEvent);
+    return HttpResponse.json({ item: newEvent });
+  }),
+
+  // 9. LLM Verify Endpoint (Mock)
+  http.post(`${API_PREFIX}/models/llm-verify`, async ({ request }) => {
+    const payload = (await request.json()) as any;
+    if (!payload.key) {
+      return HttpResponse.json({ error: { code: "BAD_REQUEST", message: "Batch key is required" } }, { status: 400 });
+    }
+
+    const isExpired = payload.exp ? new Date(payload.exp) < new Date() : false;
+    const isFlagged = payload.key.includes("0012B") || mockBatches.find(b => b.batchKey === payload.key)?.flagged;
+    const isGenuine = payload.key.includes("0041A") || mockBatches.find(b => b.batchKey === payload.key && !b.flagged);
+
+    let verdict = "SECURE & VERIFIED";
+    let color = "🟢";
+    
+    if (isFlagged) {
+      verdict = "WARNING: RECALLED LOT";
+      color = "🔴";
+    } else if (isExpired) {
+      verdict = "DANGER: EXPIRED SHIPMENT";
+      color = "❌";
+    } else if (!isGenuine && !payload.tx) {
+      verdict = "SUSPECT: NO BLOCKCHAIN FOOTPRINT";
+      color = "⚠️";
+    }
+
+    const expDate = payload.exp ? new Date(payload.exp).toLocaleDateString() : "Unknown";
+
+    const report = `### ${color} MedGuard AI Audit Report: ${verdict} (MOCK MODE)
+**Batch ID:** \`${payload.key}\` | **Audit Timestamp:** ${new Date().toLocaleString()}
+
+* **Integrity Classification:** The batch credentials map to an ${isGenuine ? "authenticated pharmaceutical ledger record" : isFlagged ? "active regulatory recall directive" : "unregistered lot payload"}.
+* **Shelf-Life Status:** Expiry anchor set to **${expDate}**. ${isExpired ? "This shipment is EXPIRED. Do not dispense to patients." : "The remaining shelf-life is within standard safety margins."}
+* **Composition Check:** Checked **${payload.name || "unlabelled formula"}** containing **${payload.ing || "unspecified active ingredients"}**.
+* **Smart Contract Cross-Reference:** Blockchain proof-of-transit hash is \`${payload.tx ? payload.tx.substring(0, 24) + "..." : "NONE"}\`. Ledger status is ${isFlagged ? "**RECALLED / FLAGGED** on Polygon. Quarantine the box immediately." : payload.tx ? "**CONFIRMED / MUTABLE**." : "**SUSPECT**. No active cryptographic ledger anchor was found."}
+
+*Clinical Advice: ${isFlagged ? "DO NOT DISTRIBUTE. This lot has been flagged for recall due to packaging defects." : isExpired ? "DO NOT SELL. Dispose of according to hazardous waste regulations." : "Approved for pharmacist check-in. Ready for retail distribution."}*`;
+
+    return HttpResponse.json({ analysisReport: report });
   }),
 ];
