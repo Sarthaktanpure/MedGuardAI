@@ -1,0 +1,38 @@
+services:
+  nginx:
+    image: nginx:stable-alpine
+    ports:
+      - "8080:80"
+    depends_on:
+      - server-a
+      - server-b
+
+  server-a:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    env_file:
+      - ../server/.env.example
+    environment:
+      MONGO_URI: mongodb://mongo:27017/medguard
+      REDIS_URL: redis://redis:6379/0
+
+  server-b:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    env_file:
+      - ../server/.env.example
+    environment:
+      MONGO_URI: mongodb://mongo:27017/medguard
+      REDIS_URL: redis://redis:6379/0
+
+  mongo:
+    image: mongo:7
+
+  redis:
+    image: redis:7-alpine
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"

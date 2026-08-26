@@ -1,0 +1,28 @@
+<svg width="960" height="720" viewBox="0 0 960 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg2" x1="104" y1="84" x2="852" y2="628" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#061410"/>
+      <stop offset="1" stop-color="#03100C"/>
+    </linearGradient>
+    <linearGradient id="path" x1="150" y1="120" x2="810" y2="580" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38E0A4" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#38E0A4" stop-opacity="0.65"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="720" rx="44" fill="url(#bg2)"/>
+  <path d="M160 540C240 448 268 392 344 358C420 324 458 340 536 300C614 260 668 180 790 150" stroke="url(#path)" stroke-width="20" stroke-linecap="round"/>
+  <circle cx="160" cy="540" r="20" fill="#38E0A4"/>
+  <circle cx="344" cy="358" r="20" fill="#38E0A4"/>
+  <circle cx="536" cy="300" r="20" fill="#38E0A4"/>
+  <circle cx="790" cy="150" r="20" fill="#38E0A4"/>
+  <rect x="108" y="116" width="190" height="132" rx="28" fill="rgba(255,255,255,0.06)" stroke="#2F8E6D" stroke-opacity="0.4"/>
+  <rect x="136" y="146" width="136" height="76" rx="18" fill="#E8FFF5"/>
+  <rect x="158" y="168" width="92" height="10" rx="5" fill="#153D6D"/>
+  <rect x="158" y="188" width="58" height="8" rx="4" fill="#305D84"/>
+  <rect x="612" y="510" width="230" height="132" rx="28" fill="rgba(255,255,255,0.06)" stroke="#2F8E6D" stroke-opacity="0.4"/>
+  <rect x="642" y="540" width="170" height="76" rx="18" fill="#E8FFF5"/>
+  <rect x="664" y="562" width="92" height="10" rx="5" fill="#153D6D"/>
+  <rect x="664" y="582" width="58" height="8" rx="4" fill="#305D84"/>
+  <text x="112" y="318" fill="#CFFFEF" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="600">Manufacturer</text>
+  <text x="648" y="484" fill="#CFFFEF" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="600">Pharmacy</text>
+</svg>

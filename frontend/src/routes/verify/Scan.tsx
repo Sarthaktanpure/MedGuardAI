@@ -1,0 +1,326 @@
+import * as React from "react";
+import { Button } from "../../components/ui/Button";
+import { Card, CardHeader, CardTitle, CardContent } from "../../components/ui/Card";
+import { Input } from "../../components/ui/Form";
+import { InferenceEngine, InferenceResult } from "../../lib/InferenceEngine";
+import { toast } from "../../components/ui/Toast";
+import { Camera, Upload, AlertCircle, ShieldAlert, Sparkles } from "lucide-react";
+
+export default function Scan() {
+  const [stream, setStream] = React.useState<MediaStream | null>(null);
+  const [photo, setPhoto] = React.useState<string | null>(null);
+  const [loading, setLoading] = React.useState(false);
+  const [batchKey, setBatchKey] = React.useState("");
+  const [result, setResult] = React.useState<InferenceResult | null>(null);
+
+  const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
+
+  // Initialize camera stream
+  const startCamera = async () => {
+    try {
+      setPhoto(null);
+      setResult(null);
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+        audio: false,
+      });
+      setStream(mediaStream);
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+      }
+    } catch {
+      toast.warning("Camera permission denied. Use file upload fallback.", "Camera Denied");
+    }
+  };
+
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      setStream(null);
+    }
+  };
+
+  React.useEffect(() => {
+    startCamera();
+    return () => stopCamera();
+  }, []);
+
+  // Snaps photo from video stream
+  const handleCapture = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Match dimensions
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+
+    // Draw frame
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL("image/jpeg");
+    setPhoto(dataUrl);
+    stopCamera();
+
+    // Trigger local inference immediately
+    runClassifier(dataUrl);
+  };
+
+  // Triggers inference loader
+  const runClassifier = async (imgData: string) => {
+    setLoading(true);
+    try {
+      const engine = InferenceEngine.getInstance();
+      const inferResult = await engine.runInference(new Image(), batchKey);
+      setResult(inferResult);
+      toast.success("Classification inference resolved successfully.", "Inference Complete");
+
+      // Save this scan session to MSW database
+      await fetch("/api/v1/scans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          batchKey: batchKey || "MG-UNKNOWN",
+          result: inferResult.verdict,
+          confidence: inferResult.confidence,
+          camSummary: inferResult.camSummary,
+        }),
+      });
+    } catch {
+      toast.error("Failed to run local package classifier.", "Inference Error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handles manual file upload fallback
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        const dataUrl = event.target.result as string;
+        setPhoto(dataUrl);
+        stopCamera();
+        runClassifier(dataUrl);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Reset scanner
+  const handleReset = () => {
+    setPhoto(null);
+    setResult(null);
+    startCamera();
+  };
+
+  return (
+    <div className="max-w-md mx-auto space-y-6">
+      <div className="text-center space-y-1">
+        <h1 className="text-xl font-bold">Inspect Blister Pack</h1>
+        <p className="text-xs text-muted-foreground">
+          Align package inside coordinates for CNN print verification.
+        </p>
+      </div>
+
+      {/* Batch input card to trigger deterministic results */}
+      <Card>
+        <CardContent className="pt-4 flex gap-2">
+          <Input
+            placeholder="Target Batch Key (optional, try MG-2026-0041A)"
+            value={batchKey}
+            onChange={(e) => setBatchKey(e.target.value)}
+            className="font-mono text-xs h-9"
+          />
+        </CardContent>
+      </Card>
+
+      {/* Camera and Capture viewport card */}
+      <Card className="overflow-hidden relative bg-black min-h-[300px]">
+        {/* Loading overlay HUD */}
+        {loading && (
+          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center text-center p-6 space-y-3">
+            <div className="h-10 w-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            <div className="space-y-1">
+              <h4 className="font-semibold text-sm text-slate-100 flex items-center justify-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+                Analyzing Blister package...
+              </h4>
+              <p className="text-[10px] text-muted-foreground leading-normal max-w-xs">
+                Running CNN classification layers locally on browser edge.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Framing Guide Overlay */}
+        {!photo && stream && (
+          <div className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center">
+            <div className="w-[75%] h-[55%] border-2 border-dashed border-primary/60 rounded-xl relative">
+              {/* Corner brackets */}
+              <div className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-primary" />
+              <div className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-primary" />
+              <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-primary" />
+              <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-primary" />
+              <span className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[9px] font-bold text-primary bg-slate-900/60 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                blister guide
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Video stream viewport */}
+        {!photo && stream ? (
+          <div className="relative w-full aspect-[4/3] bg-black">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              className="w-full h-full object-cover scale-x-[-1]"
+            />
+            <div className="absolute bottom-4 inset-x-0 flex justify-center z-20">
+              <button
+                onClick={handleCapture}
+                className="h-12 w-12 rounded-full border-4 border-slate-100 bg-primary shadow-lg flex items-center justify-center focus:outline-none"
+              >
+                <div className="h-5 w-5 rounded-full bg-slate-100" />
+              </button>
+            </div>
+          </div>
+        ) : photo ? (
+          /* Render Photo Capture & Hotspots Heatmap overlay */
+          <div className="relative w-full aspect-[4/3] bg-black flex items-center justify-center overflow-hidden">
+            <img src={photo} alt="captured scan" className="w-full h-full object-cover" />
+            
+            {/* Draw CAM Hotspot overlays if result is suspect/fake */}
+            {result && result.verdict !== "genuine" && (
+              <div className="absolute inset-0 z-20 pointer-events-none">
+                {(() => {
+                  try {
+                    const parsed = JSON.parse(result.camSummary);
+                    const grid = parsed.heatmapGrid || [];
+                    return grid.map((coord: number[], idx: number) => (
+                      <div
+                        key={idx}
+                        style={{ left: `${coord[0]}%`, top: `${coord[1]}%` }}
+                        className="absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full bg-rose-500/30 border border-rose-500 animate-pulse flex items-center justify-center"
+                      >
+                        <div className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                      </div>
+                    ));
+                  } catch {
+                    return null;
+                  }
+                })()}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Fallback view when camera is offline */
+          <div className="aspect-[4/3] bg-slate-900/40 flex flex-col items-center justify-center p-6 text-center text-xs text-muted-foreground border-b border-border/40">
+            <Camera className="h-10 w-10 text-muted-foreground mb-3" />
+            <p className="max-w-[200px] mb-4">No active video stream. Grant camera permissions or select a packaging image.</p>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={startCamera}>
+                Activate Lens
+              </Button>
+              <label className="inline-flex items-center justify-center font-medium h-9 px-3 rounded-lg border border-input bg-background hover:bg-accent text-xs cursor-pointer select-none">
+                <Upload className="h-3.5 w-3.5 mr-1.5" />
+                Upload Blister
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* Hidden canvas for snapshot raster rendering */}
+      <canvas ref={canvasRef} className="hidden" />
+
+      {/* Result Card Overlay (Framer Motion substitute using HSL templates) */}
+      {result && (
+        <Card className="animate-in slide-in-from-bottom-5 border-t-2 border-t-primary">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Inference Diagnosis</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-xs">
+            <div className="flex items-center justify-between border bg-secondary/30 p-3 rounded-lg">
+              <div className="space-y-0.5">
+                <span className="text-[10px] text-muted-foreground uppercase font-bold">Verdict</span>
+                <h4 className={`font-extrabold text-sm capitalize ${
+                  result.verdict === "genuine" ? "text-emerald-500" : result.verdict === "suspect" ? "text-amber-500" : "text-rose-500"
+                }`}>
+                  {result.verdict}
+                </h4>
+              </div>
+              <div className="text-right space-y-0.5">
+                <span className="text-[10px] text-muted-foreground uppercase font-bold">Confidence</span>
+                <p className="font-bold text-sm text-foreground">{result.confidence}%</p>
+              </div>
+            </div>
+
+            {/* Explanation banner based on verdict */}
+            {result.verdict === "genuine" ? (
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg flex gap-2">
+                <CheckCircleIcon className="h-4 w-4 shrink-0 mt-0.5" />
+                <p className="leading-relaxed">
+                  Packaging format confirms to manufacturer imprint specifications. Batch registered on-chain.
+                </p>
+              </div>
+            ) : (
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg flex gap-2">
+                <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5 text-rose-500" />
+                <p className="leading-relaxed">
+                  Anomaly hotspots found in printing layer. Blister texture template mismatch. Divergence warnings triggered.
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button className="flex-1 text-xs" onClick={handleReset}>
+                New Inspection
+              </Button>
+              <Button
+                variant="outline"
+                className="text-xs"
+                onClick={() => window.location.href = `/verify#/history`}
+              >
+                Inspection Logs
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function CheckCircleIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}

@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pydantic
+torch
+torchvision
+numpy
+pillow
+onnx
+onnxruntime
+scikit-learn

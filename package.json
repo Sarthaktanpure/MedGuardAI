@@ -1,0 +1,23 @@
+{
+  "name": "medguard",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:web": "npm --prefix frontend run dev",
+    "build:backend": "npm --prefix backend run start",
+    "build:web": "npm --prefix frontend run build",
+    "preview:web": "npm --prefix frontend run preview"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.19",
+    "msw": "^2.2.13",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.1",
+    "vitest": "^1.4.0"
+  }
+}
