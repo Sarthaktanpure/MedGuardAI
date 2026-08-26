@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Shield, Menu, X, Sun, Moon, ArrowRight } from "lucide-react";
+import { Shield, Menu, X, Sun, Moon, ArrowRight, Globe, ChevronDown } from "lucide-react";
 import { useThemeStore } from "../../store/themeStore";
 import { cn } from "../../lib/utils/cn";
 
@@ -7,15 +7,16 @@ export function MarketingNav({ children }: { children: React.ReactNode }) {
   const { theme, toggleTheme } = useThemeStore();
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
-  const links = [
+  const mobileLinks = [
     { name: "Home", href: "#/" },
     { name: "How It Works", href: "#/how-it-works" },
-    { name: "Impact", href: "#/impact" },
-    { name: "Features", href: "#/features" },
-    { name: "Pricing", href: "#/pricing" },
-    { name: "Lookup", href: "#/lookup" },
+    { name: "For Manufacturers", href: "/auth#/signup" },
+    { name: "For Regulators", href: "/auth#/signup" },
+    { name: "Impact Statistics", href: "#/impact" },
+    { name: "Pricing Plans", href: "#/pricing" },
+    { name: "Public Lookup", href: "#/lookup" },
     { name: "Live Tracking", href: "/tracking#/" },
-    { name: "About", href: "#/about" },
+    { name: "About Us", href: "#/about" },
   ];
 
   return (
@@ -29,23 +30,56 @@ export function MarketingNav({ children }: { children: React.ReactNode }) {
           </a>
 
           {/* Desktop links */}
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-            {links.map((l) => (
-              <a key={l.name} href={l.href} className="text-muted-foreground hover:text-foreground transition-colors">
-                {l.name}
-              </a>
-            ))}
+          <nav className="hidden md:flex items-center gap-6 text-sm font-semibold">
+            <a href="#/" className="text-muted-foreground hover:text-foreground transition-colors">Home</a>
+            <a href="#/how-it-works" className="text-muted-foreground hover:text-foreground transition-colors">How It Works</a>
+            <a href="/auth#/signup" className="text-muted-foreground hover:text-foreground transition-colors">For Manufacturers</a>
+            <a href="/auth#/signup" className="text-muted-foreground hover:text-foreground transition-colors">For Regulators</a>
+            
+            {/* Resources Dropdown */}
+            <div className="relative group">
+              <button className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 text-sm font-semibold">
+                Resources
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+              <div className="absolute top-full left-0 mt-2 w-48 rounded-xl bg-card border border-border shadow-xl opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all duration-200 z-50 p-1">
+                <a href="#/impact" className="block px-3 py-2 rounded-lg text-xs hover:bg-secondary text-muted-foreground hover:text-foreground font-medium">Impact Statistics</a>
+                <a href="#/pricing" className="block px-3 py-2 rounded-lg text-xs hover:bg-secondary text-muted-foreground hover:text-foreground font-medium">Pricing Plans</a>
+                <a href="#/lookup" className="block px-3 py-2 rounded-lg text-xs hover:bg-secondary text-muted-foreground hover:text-foreground font-medium">Public Lookup</a>
+                <a href="/tracking#/" className="block px-3 py-2 rounded-lg text-xs hover:bg-secondary text-muted-foreground hover:text-foreground font-medium">Live Tracking</a>
+              </div>
+            </div>
+
+            <a href="#/about" className="text-muted-foreground hover:text-foreground transition-colors">About Us</a>
           </nav>
 
           {/* Desktop CTA + Theme */}
-          <div className="hidden md:flex items-center gap-4">
-            <button onClick={toggleTheme} className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-lg">
-              {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </button>
+          <div className="hidden md:flex items-center gap-5">
+            {/* Language Selector */}
+            <div className="relative group">
+              <button className="text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 text-sm font-semibold">
+                <Globe className="h-4 w-4 text-primary" />
+                English
+                <ChevronDown className="h-3 w-3" />
+              </button>
+              <div className="absolute top-full right-0 mt-2 w-32 rounded-xl bg-card border border-border shadow-xl opacity-0 scale-95 pointer-events-none group-hover:opacity-100 group-hover:scale-100 group-hover:pointer-events-auto transition-all duration-200 z-50 p-1">
+                <button className="w-full text-left px-3 py-1.5 rounded-lg text-xs hover:bg-secondary text-foreground font-medium">English</button>
+                <button className="w-full text-left px-3 py-1.5 rounded-lg text-xs hover:bg-secondary text-muted-foreground">Español</button>
+                <button className="w-full text-left px-3 py-1.5 rounded-lg text-xs hover:bg-secondary text-muted-foreground">Français</button>
+              </div>
+            </div>
+
+            {/* Login button */}
             <a href="/auth#/">
-              <button className="inline-flex items-center justify-center font-medium h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm transition-colors">
-                Log In
-                <ArrowRight className="ml-1.5 h-4 w-4" />
+              <button className="inline-flex items-center justify-center font-semibold h-9 px-4 rounded-lg border border-border text-foreground hover:bg-secondary/50 text-sm transition-colors">
+                Login
+              </button>
+            </a>
+
+            {/* Get Started button */}
+            <a href="/verify#/">
+              <button className="inline-flex items-center justify-center font-bold h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary/95 text-sm transition-colors shadow-lg shadow-primary/20">
+                Get Started
               </button>
             </a>
           </div>
@@ -65,7 +99,7 @@ export function MarketingNav({ children }: { children: React.ReactNode }) {
         {mobileOpen && (
           <div className="md:hidden border-b border-border bg-card p-4 animate-in slide-in-from-top-5">
             <nav className="flex flex-col gap-3.5 text-sm font-medium">
-              {links.map((l) => (
+              {mobileLinks.map((l) => (
                 <a
                   key={l.name}
                   href={l.href}

@@ -1,4 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
+  --background: 150 70% 3%;
+  --foreground: 150 30% 95%;
+  --primary: 150 80% 40%;
+  --primary-foreground: 150 30% 98%;
+  --card: 150 40% 6%;
+  --card-foreground: 150 30% 95%;
+  --border: 150 30% 12%;
+  --input: 150 30% 12%;
+  --ring: 150 80% 40%;
+  --muted: 150 20% 70%;
+  --muted-foreground: 150 15% 65%;
+  --accent: 150 60% 15%;
+  --accent-foreground: 150 80% 50%;
+  --radius: 0.75rem;
+  
+  --genuine: 142.1 76.2% 36.3%;
+  --genuine-foreground: 355.7 100% 97.3%;
+  --suspect: 38 92% 50%;
+  --suspect-foreground: 48 96% 89%;
+  --fake: 0 84% 60%;
+  --fake-foreground: 0 0% 98%;
+
   color-scheme: dark;
   font-family: "Sora", "Avenir Next", "Segoe UI", sans-serif;
   line-height: 1.5;
