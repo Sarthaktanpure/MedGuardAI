@@ -83,42 +83,49 @@ export class InferenceEngine {
           inferenceTimeMs: 450,
         };
       }
+
+      // Check online backend registry if network is available
+      try {
+        const response = await fetch(`/api/v1/batches/${cleanKey}`);
+        if (response.ok) {
+          const batchData = await response.json();
+          if (batchData && !batchData.flagged && batchData.chainStatus === "confirmed") {
+            return {
+              verdict: "genuine",
+              confidence: 94.5,
+              camSummary: JSON.stringify({ hotspotCount: 0, averageLoss: 0.03, heatmapGrid: [] }),
+              inferenceTimeMs: 390,
+            };
+          }
+        }
+      } catch (error) {
+        console.warn("Backend lookup failed, falling back to strict classification", error);
+      }
     }
 
-    // Default fallback: randomized yet realistic results
+    // Default strict fallback: any random / unverified scan is fake or suspect
     const rand = Math.random();
-    if (rand < 0.6) {
-      return {
-        verdict: "genuine",
-        confidence: 90 + Math.random() * 9,
-        camSummary: JSON.stringify({ hotspotCount: 0, averageLoss: 0.04, heatmapGrid: [] }),
-        inferenceTimeMs: 380 + Math.floor(Math.random() * 100),
-      };
-    } else if (rand < 0.85) {
+    if (rand < 0.2) {
       return {
         verdict: "suspect",
-        confidence: 60 + Math.random() * 20,
+        confidence: 65.2,
         camSummary: JSON.stringify({
-          hotspotCount: 1,
-          averageLoss: 0.35,
-          heatmapGrid: [[Math.floor(40 + Math.random() * 20), Math.floor(40 + Math.random() * 20)]],
+          hotspotCount: 2,
+          averageLoss: 0.45,
+          heatmapGrid: [[20, 30], [65, 70]],
         }),
-        inferenceTimeMs: 400 + Math.floor(Math.random() * 100),
+        inferenceTimeMs: 420,
       };
     } else {
       return {
         verdict: "fake",
-        confidence: 80 + Math.random() * 18,
+        confidence: 88.5,
         camSummary: JSON.stringify({
-          hotspotCount: 3,
-          averageLoss: 0.68,
-          heatmapGrid: [
-            [25, 40],
-            [50, 50],
-            [70, 30],
-          ],
+          hotspotCount: 4,
+          averageLoss: 0.78,
+          heatmapGrid: [[35, 45], [40, 50], [55, 30], [60, 65]],
         }),
-        inferenceTimeMs: 410 + Math.floor(Math.random() * 100),
+        inferenceTimeMs: 450,
       };
     }
   }
