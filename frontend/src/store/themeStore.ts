@@ -7,7 +7,7 @@ interface ThemeState {
 }
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
-  theme: (localStorage.getItem("theme") as "light" | "dark") || "dark",
+  theme: (localStorage.getItem("theme") as "light" | "dark") || "light",
   toggleTheme: () => {
     const nextTheme = get().theme === "dark" ? "light" : "dark";
     localStorage.setItem("theme", nextTheme);
@@ -31,7 +31,7 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
 
 // Auto-initialize theme on load
 if (typeof window !== "undefined") {
-  const theme = localStorage.getItem("theme") || "dark";
+  const theme = localStorage.getItem("theme") || "light";
   if (theme === "dark") {
     document.documentElement.classList.add("dark");
   } else {
