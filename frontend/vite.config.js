@@ -1,8 +1,35 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+// Plugin to rewrite MPA routes in dev/preview server
+const mpaRewrite = () => ({
+  name: 'mpa-rewrite',
+  configureServer(server) {
+    server.middlewares.use((req, res, next) => {
+      const url = new URL(req.url, 'http://localhost')
+      const pathname = url.pathname.replace(/\/$/, '')
+      const routes = ['/auth', '/dashboard', '/verify', '/tracking']
+      if (routes.includes(pathname)) {
+        req.url = `${pathname}.html` + url.search
+      }
+      next()
+    })
+  },
+  configurePreviewServer(server) {
+    server.middlewares.use((req, res, next) => {
+      const url = new URL(req.url, 'http://localhost')
+      const pathname = url.pathname.replace(/\/$/, '')
+      const routes = ['/auth', '/dashboard', '/verify', '/tracking']
+      if (routes.includes(pathname)) {
+        req.url = `${pathname}.html` + url.search
+      }
+      next()
+    })
+  }
+})
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), mpaRewrite()],
   build: {
     rollupOptions: {
       input: {

@@ -1,19 +1,19 @@
 import * as React from "react";
 import { Button } from "../../components/ui/Button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "../../components/ui/Card";
-import { 
-  ShieldCheck, 
-  ArrowRight, 
-  WifiOff, 
-  Cpu, 
-  Database, 
-  Lock, 
-  Camera, 
+import {
+  ShieldCheck,
+  ArrowRight,
+  WifiOff,
+  Cpu,
+  Database,
+  Lock,
+  Camera,
   Play,
-  ShieldAlert, 
-  Activity, 
-  Zap, 
-  RefreshCw 
+  ShieldAlert,
+  Activity,
+  Zap,
+  RefreshCw
 } from "lucide-react";
 import heroArt from "../../assets/hero.png";
 
@@ -22,57 +22,57 @@ export default function Home() {
   const [liveTemp, setLiveTemp] = React.useState(4.2);
 
   const simStates = [
-    { 
-      step: 0, 
-      badge: "Capture Viewfinder", 
-      status: "ALIGNING PACKAGE", 
-      info: "Fit medicine package inside camera frame boundaries...", 
-      progress: "25%", 
-      color: "text-slate-500", 
+    {
+      step: 0,
+      badge: "Capture Viewfinder",
+      status: "ALIGNING PACKAGE",
+      info: "Fit medicine package inside camera frame boundaries...",
+      progress: "25%",
+      color: "text-slate-500",
       bg: "bg-slate-500/10",
       border: "border-slate-300/10",
-      showLaser: true, 
+      showLaser: true,
       verdict: "Awaiting Capture",
-      conf: "0%" 
+      conf: "0%"
     },
-    { 
-      step: 1, 
-      badge: "On-Device AI Check", 
-      status: "ANALYZING PRINT TEXTURE", 
-      info: "Verifying packaging print density & layout integrity...", 
-      progress: "50%", 
-      color: "text-amber-500", 
+    {
+      step: 1,
+      badge: "On-Device AI Check",
+      status: "ANALYZING PRINT TEXTURE",
+      info: "Verifying packaging print density & layout integrity...",
+      progress: "50%",
+      color: "text-amber-500",
       bg: "bg-amber-500/10",
       border: "border-amber-500/20",
-      showLaser: true, 
+      showLaser: true,
       verdict: "Computing...",
-      conf: "78%" 
+      conf: "78%"
     },
-    { 
-      step: 2, 
-      badge: "On-Chain Audit", 
-      status: "LEDGER AUDIT", 
-      info: "Querying Polygon decentralized drug registry lot keys...", 
-      progress: "75%", 
-      color: "text-cyan-500", 
+    {
+      step: 2,
+      badge: "On-Chain Audit",
+      status: "LEDGER AUDIT",
+      info: "Querying Polygon decentralized drug registry lot keys...",
+      progress: "75%",
+      color: "text-cyan-500",
       bg: "bg-cyan-500/10",
       border: "border-cyan-500/20",
-      showLaser: false, 
+      showLaser: false,
       verdict: "Checking Blockchain...",
-      conf: "91%" 
+      conf: "91%"
     },
-    { 
-      step: 3, 
-      badge: "Audit Complete", 
-      status: "VERIFIED GENUINE", 
-      info: "Lot matches blockchain anchors & print dossiers perfectly.", 
-      progress: "100%", 
-      color: "text-emerald-500", 
+    {
+      step: 3,
+      badge: "Audit Complete",
+      status: "VERIFIED GENUINE",
+      info: "Lot matches blockchain anchors & print dossiers perfectly.",
+      progress: "100%",
+      color: "text-emerald-500",
       bg: "bg-emerald-500/10",
       border: "border-emerald-500/25",
-      showLaser: false, 
+      showLaser: false,
       verdict: "Verified Safe & Genuine",
-      conf: "98%" 
+      conf: "98%"
     }
   ];
 
@@ -120,8 +120,8 @@ export default function Home() {
               Scan Medicine Now
               <Camera className="ml-2 h-4.5 w-4.5 group-hover:scale-110 transition-transform" />
             </Button>
-            <Button variant="outline" size="lg" className="w-full sm:w-auto border-slate-200 hover:bg-slate-50/80 dark:border-slate-800 dark:hover:bg-slate-900 font-bold group" onClick={() => window.location.href = "/how-it-works"}>
-              <span className="text-slate-800 dark:text-slate-100">See How It Works</span>
+            <Button variant="outline" size="lg" className="w-full sm:w-auto bg-primary font-bold group" onClick={() => window.location.href = "/how-it-works"}>
+              <span className="text-primary-foreground">See How It Works</span>
               <Play className="ml-2 h-4 w-4 fill-current text-slate-800 dark:text-slate-100 group-hover:translate-x-0.5 transition-transform" />
             </Button>
           </div>
