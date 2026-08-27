@@ -1,0 +1,14 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://medguardai-h6ce.onrender.com/api/:path*" },
+    { "source": "/auth", "destination": "/auth.html" },
+    { "source": "/auth/", "destination": "/auth.html" },
+    { "source": "/dashboard", "destination": "/dashboard.html" },
+    { "source": "/dashboard/", "destination": "/dashboard.html" },
+    { "source": "/verify", "destination": "/verify.html" },
+    { "source": "/verify/", "destination": "/verify.html" },
+    { "source": "/tracking", "destination": "/tracking.html" },
+    { "source": "/tracking/", "destination": "/tracking.html" }
+  ]
+}
