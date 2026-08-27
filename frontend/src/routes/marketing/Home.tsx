@@ -120,7 +120,7 @@ export default function Home() {
               Scan Medicine Now
               <Camera className="ml-2 h-4.5 w-4.5 group-hover:scale-110 transition-transform" />
             </Button>
-            <Button variant="outline" size="lg" className="w-full sm:w-auto bg-primary font-bold group" onClick={() => window.location.href = "/how-it-works"}>
+            <Button variant="outline" size="lg" className="w-full sm:w-auto bg-primary font-bold group" onClick={() => window.location.href = "#/how-it-works"}>
               <span className="text-primary-foreground">See How It Works</span>
               <Play className="ml-2 h-4 w-4 fill-current text-slate-800 dark:text-slate-100 group-hover:translate-x-0.5 transition-transform" />
             </Button>
