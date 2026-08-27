@@ -6,8 +6,8 @@ const userSchema = new Schema(
     passwordHash: { type: String, required: true },
     role: {
       type: String,
-      enum: ["user", "patient", "pharmacist", "manufacturer", "regulator", "admin"],
-      default: "user",
+      enum: ["patient", "company", "pharmacist", "deliveryman"],
+      default: "patient",
       index: true
     },
     displayName: { type: String, default: "" },

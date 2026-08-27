@@ -32,7 +32,7 @@ export async function createScan(input: {
 }
 
 export async function listScans(userId: string, role: string) {
-  const filter = role === "admin" ? {} : { userId };
+  const filter = role === "company" || role === "pharmacist" ? {} : { userId };
   return ScanModel.find(filter).sort({ createdAt: -1 }).limit(50);
 }
 
@@ -42,7 +42,7 @@ export async function getScan(id: string, userId: string, role: string) {
     throw new HttpError(404, "NOT_FOUND", "Scan not found");
   }
 
-  if (role !== "admin" && String(scan.userId) !== userId) {
+  if (role !== "company" && role !== "pharmacist" && String(scan.userId) !== userId) {
     throw new HttpError(403, "FORBIDDEN", "You cannot access this scan");
   }
 

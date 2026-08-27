@@ -6,7 +6,7 @@ import { listUsers, updateUser } from "../controllers/admin.controller.js";
 
 export const adminRouter = Router();
 
-adminRouter.use(authenticate, authorize("admin"));
+adminRouter.use(authenticate, authorize("company"));
 adminRouter.get("/users", listUsers);
 adminRouter.patch("/users/:id", updateUser);
 adminRouter.get("/audit-logs", (_req, res) => {

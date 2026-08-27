@@ -4,19 +4,19 @@ import { env } from "../config/env.js";
 
 export async function connectDatabase() {
   if (!env.MONGO_URI) {
-    console.warn("⚠️ MONGO_URI is missing. Operating in offline/mock mode.");
-    return { connected: false };
+    console.error("❌ MONGO_URI is missing. Database connection is required.");
+    throw new Error("MONGO_URI environment variable is missing.");
   }
 
   try {
     mongoose.set("bufferCommands", false);
     await mongoose.connect(env.MONGO_URI, {
-      serverSelectionTimeoutMS: 2000,
+      serverSelectionTimeoutMS: 5000,
     });
     console.log("🟢 Connected to MongoDB successfully.");
     return { connected: true };
   } catch (err: any) {
-    console.warn("⚠️ Failed to connect to MongoDB. Operating in offline fallback mode:", err.message);
-    return { connected: false };
+    console.error("❌ Failed to connect to MongoDB:", err.message);
+    throw err;
   }
 }

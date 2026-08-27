@@ -4,7 +4,7 @@ import { Button } from "../../components/ui/Button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../../components/ui/Card";
 import { Input, FormItem, FormMessage } from "../../components/ui/Form";
 import { toast } from "../../components/ui/Toast";
-import { ShieldCheck, User, Building, Compass } from "lucide-react";
+import { ShieldCheck, User, Building, Compass, Truck } from "lucide-react";
 import { UserRole } from "../../../../shared/types";
 
 export default function Signup() {
@@ -37,20 +37,26 @@ export default function Signup() {
     {
       id: "patient" as UserRole,
       title: "Patient / Consumer",
-      desc: "Verify packaging integrity of medicines you purchase at pharmacies.",
+      desc: "Verify packaging integrity and check ingredients using clinical AI.",
       icon: <User className="h-5 w-5" />,
     },
     {
-      id: "manufacturer" as UserRole,
-      title: "Manufacturer",
+      id: "company" as UserRole,
+      title: "Pharma Company",
       desc: "Log batch cryptohashes on-chain and trace supply chains globally.",
       icon: <Building className="h-5 w-5" />,
     },
     {
-      id: "regulator" as UserRole,
-      title: "Health Inspector",
-      desc: "Audit regional pharmacies, coordinate recalls, and view counterfeit clusters.",
+      id: "pharmacist" as UserRole,
+      title: "Licensed Pharmacist",
+      desc: "Verify medicine authenticity and inspect transit conditions before dispensing.",
       icon: <Compass className="h-5 w-5" />,
+    },
+    {
+      id: "deliveryman" as UserRole,
+      title: "Delivery Man / Partner",
+      desc: "Log route transit check-ins, cold-chain temperature, and seal status.",
+      icon: <Truck className="h-5 w-5" />,
     },
   ];
 

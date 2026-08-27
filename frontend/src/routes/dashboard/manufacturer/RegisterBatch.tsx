@@ -164,7 +164,7 @@ export default function RegisterBatch() {
                   Register Another
                 </Button>
                 <Button variant="outline" className="text-xs" onClick={() => {
-                  window.location.hash = "/manufacturer/batches";
+                  window.location.hash = "/company/batches";
                 }}>
                   Inventory List
                 </Button>

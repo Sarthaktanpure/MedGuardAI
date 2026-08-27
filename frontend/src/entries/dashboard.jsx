@@ -5,18 +5,14 @@ import { bootMsw } from "../lib/mswBoot";
 import { Providers } from "../components/shared/Providers";
 import { AppShell } from "../components/shared/AppShell";
 
-// Import Manufacturer sub-pages
-import ManufacturerDashboard from "../routes/dashboard/manufacturer/Dashboard";
+// Import Company sub-pages (reusing manufacturer components)
+import CompanyDashboard from "../routes/dashboard/manufacturer/Dashboard";
 import RegisterBatch from "../routes/dashboard/manufacturer/RegisterBatch";
 import BatchList from "../routes/dashboard/manufacturer/BatchList";
 
-// Import Regulator sub-pages
-import RegulatorOverview from "../routes/dashboard/regulator/Overview";
-
-// Import Admin sub-pages
-import UserManagement from "../routes/dashboard/admin/UserManagement";
-import ModelRegistry from "../routes/dashboard/admin/ModelRegistry";
-import SystemLogs from "../routes/dashboard/admin/SystemLogs";
+// Import Pharmacist & Deliveryman dashboards
+import PharmacistDashboard from "../routes/dashboard/pharmacist/Dashboard";
+import DeliverymanDashboard from "../routes/dashboard/deliveryman/Dashboard";
 
 import "../App.css";
 import "../index.css";
@@ -28,43 +24,39 @@ function DashboardAppLayout() {
   useEffect(() => {
     const path = location.pathname;
     
-    // Manufacturer paths
-    if (path === "/manufacturer") setActiveTab("Manufacturer Home");
-    else if (path === "/manufacturer/register") setActiveTab("Register Batch");
-    else if (path === "/manufacturer/batches") setActiveTab("Batch Inventory");
+    // Company (Manufacturer) paths
+    if (path === "/company" || path === "/manufacturer") setActiveTab("Company Home");
+    else if (path === "/company/register" || path === "/manufacturer/register") setActiveTab("Register Batch");
+    else if (path === "/company/batches" || path === "/manufacturer/batches") setActiveTab("Batch Inventory");
     
-    // Regulator paths
-    else if (path === "/regulator") setActiveTab("Inspector Overview");
-    else if (path === "/regulator/heatmap") setActiveTab("Incidents Heatmap");
-    else if (path === "/regulator/trends") setActiveTab("Trend Analysis");
+    // Pharmacist paths
+    else if (path === "/pharmacist") setActiveTab("Pharmacist Portal");
     
-    // Admin paths
-    else if (path === "/admin" || path === "/admin/users") setActiveTab("User Directory");
-    else if (path === "/admin/models") setActiveTab("Model Registry");
-    else if (path === "/admin/logs") setActiveTab("System logs");
+    // Deliveryman paths
+    else if (path === "/deliveryman") setActiveTab("Delivery Dashboard");
   }, [location]);
 
   return (
     <AppShell activeTab={activeTab}>
       <Routes>
-        {/* Manufacturer sub-routes */}
-        <Route path="/manufacturer" element={<ManufacturerDashboard />} />
+        {/* Company (Manufacturer) sub-routes */}
+        <Route path="/company" element={<CompanyDashboard />} />
+        <Route path="/company/register" element={<RegisterBatch />} />
+        <Route path="/company/batches" element={<BatchList />} />
+        
+        {/* Compatibility fallbacks for seed swapping */}
+        <Route path="/manufacturer" element={<CompanyDashboard />} />
         <Route path="/manufacturer/register" element={<RegisterBatch />} />
         <Route path="/manufacturer/batches" element={<BatchList />} />
 
-        {/* Regulator sub-routes */}
-        <Route path="/regulator" element={<RegulatorOverview />} />
-        <Route path="/regulator/heatmap" element={<RegulatorOverview />} />
-        <Route path="/regulator/trends" element={<RegulatorOverview />} />
+        {/* Pharmacist routes */}
+        <Route path="/pharmacist" element={<PharmacistDashboard />} />
 
-        {/* Admin sub-routes */}
-        <Route path="/admin" element={<UserManagement />} />
-        <Route path="/admin/users" element={<UserManagement />} />
-        <Route path="/admin/models" element={<ModelRegistry />} />
-        <Route path="/admin/logs" element={<SystemLogs />} />
+        {/* Deliveryman routes */}
+        <Route path="/deliveryman" element={<DeliverymanDashboard />} />
 
         {/* Fallbacks */}
-        <Route path="*" element={<ManufacturerDashboard />} />
+        <Route path="*" element={<CompanyDashboard />} />
       </Routes>
     </AppShell>
   );

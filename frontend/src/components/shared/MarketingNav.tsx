@@ -1,10 +1,12 @@
 import * as React from "react";
-import { Shield, Menu, X, Sun, Moon, ArrowRight, Globe, ChevronDown } from "lucide-react";
+import { Shield, Menu, X, Sun, Moon, ArrowRight, Globe, ChevronDown, LogOut, LayoutDashboard } from "lucide-react";
 import { useThemeStore } from "../../store/themeStore";
+import { useAuthStore } from "../../store/authStore";
 import { cn } from "../../lib/utils/cn";
 
 export function MarketingNav({ children }: { children: React.ReactNode }) {
   const { theme, toggleTheme } = useThemeStore();
+  const { user, isAuthenticated, logout } = useAuthStore();
   const [mobileOpen, setMobileOpen] = React.useState(false);
 
   const mobileLinks = [
@@ -69,19 +71,43 @@ export function MarketingNav({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
-            {/* Login button */}
-            <a href="/auth#/">
-              <button className="inline-flex items-center justify-center font-semibold h-9 px-4 rounded-lg border border-border text-foreground hover:bg-secondary/50 text-sm transition-colors">
-                Login
-              </button>
-            </a>
+            {/* Conditional Auth buttons */}
+            {isAuthenticated ? (
+              <div className="flex items-center gap-3">
+                <a href={user?.role === "patient" ? "/verify#/" : `/dashboard#/${user?.role}`}>
+                  <button className="inline-flex items-center justify-center gap-1.5 font-bold h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary/95 text-sm transition-colors shadow-lg shadow-primary/20">
+                    <LayoutDashboard className="h-4 w-4" />
+                    Console
+                  </button>
+                </a>
+                <button
+                  onClick={() => {
+                    logout();
+                    window.location.reload();
+                  }}
+                  className="inline-flex items-center justify-center font-semibold h-9 px-3 rounded-lg border border-border text-muted-foreground hover:text-destructive hover:bg-secondary/50 text-sm transition-colors"
+                  title="Log Out"
+                >
+                  <LogOut className="h-4.5 w-4.5" />
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Login button */}
+                <a href="/auth#/">
+                  <button className="inline-flex items-center justify-center font-semibold h-9 px-4 rounded-lg border border-border text-foreground hover:bg-secondary/50 text-sm transition-colors">
+                    Login
+                  </button>
+                </a>
 
-            {/* Get Started button */}
-            <a href="/verify#/">
-              <button className="inline-flex items-center justify-center font-bold h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary/95 text-sm transition-colors shadow-lg shadow-primary/20">
-                Get Started
-              </button>
-            </a>
+                {/* Get Started button */}
+                <a href="/verify#/">
+                  <button className="inline-flex items-center justify-center font-bold h-9 px-4 rounded-lg bg-primary text-primary-foreground hover:bg-primary/95 text-sm transition-colors shadow-lg shadow-primary/20">
+                    Get Started
+                  </button>
+                </a>
+              </>
+            )}
           </div>
 
           {/* Mobile toggle */}
@@ -110,11 +136,37 @@ export function MarketingNav({ children }: { children: React.ReactNode }) {
                 </a>
               ))}
               <hr className="border-border/60 my-1" />
-              <a href="/auth#/" onClick={() => setMobileOpen(false)}>
-                <button className="w-full h-10 rounded-lg bg-primary text-primary-foreground font-semibold">
-                  Access Portal
-                </button>
-              </a>
+              {isAuthenticated ? (
+                <div className="space-y-2">
+                  <a
+                    href={user?.role === "patient" ? "/verify#/" : `/dashboard#/${user?.role}`}
+                    onClick={() => setMobileOpen(false)}
+                    className="block"
+                  >
+                    <button className="w-full h-10 rounded-lg bg-primary text-primary-foreground font-semibold flex items-center justify-center gap-2">
+                      <LayoutDashboard className="h-4 w-4" />
+                      Go to Console ({user?.displayName})
+                    </button>
+                  </a>
+                  <button
+                    onClick={() => {
+                      logout();
+                      setMobileOpen(false);
+                      window.location.reload();
+                    }}
+                    className="w-full h-10 rounded-lg border border-border text-muted-foreground hover:text-destructive font-semibold flex items-center justify-center gap-2"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Log Out
+                  </button>
+                </div>
+              ) : (
+                <a href="/auth#/" onClick={() => setMobileOpen(false)}>
+                  <button className="w-full h-10 rounded-lg bg-primary text-primary-foreground font-semibold">
+                    Access Portal
+                  </button>
+                </a>
+              )}
             </nav>
           </div>
         )}

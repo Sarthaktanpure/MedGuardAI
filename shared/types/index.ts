@@ -51,7 +51,7 @@ export const BatchRegistryAbi = [
 
 export const BatchRegistryAddress = "0x0000000000000000000000000000000000000000";
 
-export type UserRole = "patient" | "pharmacist" | "manufacturer" | "regulator" | "admin";
+export type UserRole = "patient" | "company" | "pharmacist" | "deliveryman";
 
 export interface User {
   _id: string;

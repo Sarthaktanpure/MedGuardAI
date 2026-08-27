@@ -34,9 +34,9 @@ export default function ManufacturerDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold tracking-tight">Manufacturer Console</h1>
+        <h1 className="text-xl font-bold tracking-tight">Pharma Company Dashboard</h1>
         <p className="text-xs text-muted-foreground font-medium">
-          Manage product registries, audit ledger txs, and inspect counterfeit reports.
+          Manage product registries, audit ledger blocks, and inspect alerts.
         </p>
       </div>
 

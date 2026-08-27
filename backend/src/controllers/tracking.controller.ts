@@ -10,6 +10,10 @@ export const createEvent = asyncHandler(async (req: Request, res: Response) => {
     trackingId: req.body.trackingId,
     status: req.body.status,
     location: req.body.location,
+    latitude: req.body.latitude,
+    longitude: req.body.longitude,
+    temperature: req.body.temperature,
+    sealIntact: req.body.sealIntact,
     note: req.body.note,
     createdBy: req.user.userId
   });

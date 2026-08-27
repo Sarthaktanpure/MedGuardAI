@@ -5,27 +5,51 @@ import { hashPassword } from "./password.js";
 
 export async function seedDemoData() {
   const seedUserId = "000000000000000000000001";
-  const adminEmail = "admin@medguard.local";
-  const manufacturerEmail = "manufacturer@medguard.local";
+  const companyEmail = "company@medguard.local";
+  const pharmacistEmail = "pharmacist@medguard.local";
+  const deliverymanEmail = "deliveryman@medguard.local";
+  const patientEmail = "patient@medguard.local";
 
-  const adminExists = await UserModel.findOne({ email: adminEmail });
-  if (!adminExists) {
+  const companyExists = await UserModel.findOne({ email: companyEmail });
+  if (!companyExists) {
     await UserModel.create({
-      email: adminEmail,
+      email: companyEmail,
       passwordHash: await hashPassword("MedGuard123!"),
-      displayName: "MedGuard Admin",
-      role: "admin",
+      displayName: "Pharma Company Inc.",
+      role: "company",
       isActive: true
     });
   }
 
-  const manufacturerExists = await UserModel.findOne({ email: manufacturerEmail });
-  if (!manufacturerExists) {
+  const pharmacistExists = await UserModel.findOne({ email: pharmacistEmail });
+  if (!pharmacistExists) {
     await UserModel.create({
-      email: manufacturerEmail,
+      email: pharmacistEmail,
       passwordHash: await hashPassword("MedGuard123!"),
-      displayName: "Demo Manufacturer",
-      role: "manufacturer",
+      displayName: "Apex Care Pharmacist",
+      role: "pharmacist",
+      isActive: true
+    });
+  }
+
+  const deliverymanExists = await UserModel.findOne({ email: deliverymanEmail });
+  if (!deliverymanExists) {
+    await UserModel.create({
+      email: deliverymanEmail,
+      passwordHash: await hashPassword("MedGuard123!"),
+      displayName: "Transit Express Delivery",
+      role: "deliveryman",
+      isActive: true
+    });
+  }
+
+  const patientExists = await UserModel.findOne({ email: patientEmail });
+  if (!patientExists) {
+    await UserModel.create({
+      email: patientEmail,
+      passwordHash: await hashPassword("MedGuard123!"),
+      displayName: "John Doe (Patient)",
+      role: "patient",
       isActive: true
     });
   }

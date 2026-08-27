@@ -5,8 +5,31 @@ import { BookOpen, HelpCircle, Users } from "lucide-react";
 
 export default function About() {
   const team = [
-    { name: "Dr. Elena Rostova", role: "Chief ML Architect", bio: "Former researcher at WHO Health Informatics Group. Specializes in edge neural architectures." },
-    { name: "Marcus Vane", role: "Core Cryptography Lead", bio: "Smart contract engineer with 8 years of supply chain tracking experience on EVM platforms." },
+    {
+      name: "Sarthak Tanpure",
+      role: "Full Stack & AI Developer",
+      bio: "Leads the platform architecture, AI integration, and scalable web development for MedGuard."
+    },
+    {
+      name: "Omkar Tambe",
+      role: "Full Stack & AI Developer",
+      bio: "Builds secure APIs, database systems, and authentication workflows with a focus on reliability."
+    },
+    {
+      name: "Yash Tambe",
+      role: "Frontend Developer",
+      bio: "Designs responsive user interfaces and creates smooth, intuitive user experiences across the platform."
+    },
+    {
+      name: "Sanskruti Kadaskar",
+      role: "UI/UX Designer",
+      bio: "Crafts modern healthcare-focused interfaces with an emphasis on accessibility and visual clarity."
+    },
+    {
+      name: "Shravani Thete",
+      role: "Research & Testing Lead",
+      bio: "Handles medical research, usability testing, and quality assurance to ensure trustworthy results."
+    }
   ];
 
   const blogs = [

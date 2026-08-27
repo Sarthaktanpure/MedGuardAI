@@ -8,15 +8,12 @@ const port = Number(process.env.PORT ?? 5000);
 
 const app = createServer();
 
-const db = await connectDatabase();
-if (db.connected) {
-  try {
-    await seedDemoData();
-  } catch (err: any) {
-    console.error("❌ Failed to seed database:", err.message);
-  }
-} else {
-  console.warn("⚠️ Database is offline. Skipping demo seeding.");
+try {
+  await connectDatabase();
+  await seedDemoData();
+} catch (err: any) {
+  console.error("❌ Database initialization failed. Exiting server:", err.message);
+  process.exit(1);
 }
 
 app.listen(port, () => {

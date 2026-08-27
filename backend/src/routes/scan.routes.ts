@@ -12,4 +12,4 @@ scanRouter.use(authenticate);
 scanRouter.post("/", validateBody(scanSchema), create);
 scanRouter.get("/", list);
 scanRouter.get("/:id", read);
-scanRouter.post("/:id/flag", authorize("admin", "manufacturer"), validateBody(scanFlagSchema), flag);
+scanRouter.post("/:id/flag", authorize("company", "pharmacist"), validateBody(scanFlagSchema), flag);

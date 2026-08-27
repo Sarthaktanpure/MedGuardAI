@@ -11,23 +11,23 @@ export const create = asyncHandler(async (req: Request, res: Response) => {
     metadataHash: req.body.metadataHash,
     createdBy: req.user.userId
   });
-  res.status(201).json({ item: batch });
+  res.status(201).json(batch);
 });
 
 export const list = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
   const batches = await listBatches(req.user.role, req.user.userId);
-  res.json({ items: batches });
+  res.json(batches);
 });
 
 export const read = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
   const batch = await getBatch(req.params.id as string, req.user.userId, req.user.role);
-  res.json({ item: batch });
+  res.json(batch);
 });
 
 export const flag = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
   const batch = await flagBatch(req.params.id as string, req.user.userId, req.user.role);
-  res.json({ item: batch });
+  res.json(batch);
 });

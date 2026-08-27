@@ -26,17 +26,17 @@ export const create = asyncHandler(async (req: Request, res: Response) => {
 export const list = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
   const scans = await listScans(req.user.userId, req.user.role);
-  res.json({ items: scans });
+  res.json(scans);
 });
 
 export const read = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
   const scan = await getScan(req.params.id as string, req.user.userId, req.user.role);
-  res.json({ item: scan });
+  res.json(scan);
 });
 
 export const flag = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new HttpError(401, "UNAUTHORIZED", "Authentication required");
   const scan = await flagScan(req.params.id as string, req.user.userId, req.user.role, req.body.reason);
-  res.json({ item: scan });
+  res.json(scan);
 });

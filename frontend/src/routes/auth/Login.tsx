@@ -23,19 +23,15 @@ export default function Login() {
     try {
       // Direct login based on email hint or fallback patient
       let role: UserRole = "patient";
-      if (email.includes("mfr") || email.includes("manufacturer")) role = "manufacturer";
-      else if (email.includes("reg") || email.includes("regulator")) role = "regulator";
-      else if (email.includes("admin")) role = "admin";
+      if (email.includes("company") || email.includes("mfr")) role = "company";
+      else if (email.includes("pharm")) role = "pharmacist";
+      else if (email.includes("delivery") || email.includes("del")) role = "deliveryman";
 
       await login(email, role);
       toast.success("Welcome back! Redirecting...", "Login Success");
       
-      // Route based on user role
-      if (role === "patient") {
-        window.location.href = "/verify#/";
-      } else {
-        window.location.href = `/dashboard#/${role}`;
-      }
+      // Redirect to home page
+      window.location.href = "/";
     } catch {
       toast.error("Login failed. Please inspect credentials.", "Error");
     } finally {
@@ -44,18 +40,15 @@ export default function Login() {
   };
 
   // Demo shortcuts for easy judging access
-  const handleQuickLogin = async (role: "patient" | "manufacturer" | "regulator" | "admin") => {
-    setEmail(`${role}@medguard.org`);
+  const handleQuickLogin = async (role: "patient" | "company" | "pharmacist" | "deliveryman") => {
+    const email = `${role}@medguard.local`;
+    setEmail(email);
     setPassword("••••••••");
     setLoading(true);
     try {
-      await login(`${role}@medguard.org`, role);
+      await login(email, role);
       toast.success(`Success! Accessing as ${role}.`, "Quick Login");
-      if (role === "patient") {
-        window.location.href = "/verify#/";
-      } else {
-        window.location.href = `/dashboard#/${role}`;
-      }
+      window.location.href = "/";
     } catch {
       setLoading(false);
     }
@@ -113,14 +106,14 @@ export default function Login() {
               <Button variant="outline" size="sm" className="text-[10px] py-1 border-border/80" onClick={() => handleQuickLogin("patient")}>
                 Patient Scanner
               </Button>
-              <Button variant="outline" size="sm" className="text-[10px] py-1 border-border/80" onClick={() => handleQuickLogin("manufacturer")}>
-                Manufacturer Portal
+              <Button variant="outline" size="sm" className="text-[10px] py-1 border-border/80" onClick={() => handleQuickLogin("company")}>
+                Company (Pharma)
               </Button>
-              <Button variant="outline" size="sm" className="text-[10px] py-1 border-border/80" onClick={() => handleQuickLogin("regulator")}>
-                District Inspector
+              <Button variant="outline" size="sm" className="text-[10px] py-1 border-border/80" onClick={() => handleQuickLogin("pharmacist")}>
+                Pharmacist Portal
               </Button>
-              <Button variant="outline" size="sm" className="text-[10px] py-1 border-border/80" onClick={() => handleQuickLogin("admin")}>
-                Super Admin
+              <Button variant="outline" size="sm" className="text-[10px] py-1 border-border/80" onClick={() => handleQuickLogin("deliveryman")}>
+                Delivery Partner
               </Button>
             </div>
           </div>

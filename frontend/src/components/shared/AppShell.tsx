@@ -38,30 +38,25 @@ export function AppShell({ children, activeTab }: { children: React.ReactNode; a
       { name: "Track Delivery", icon: <Compass className="h-4 w-4" />, href: "/tracking#/" },
     ];
 
-    if (user?.role === "manufacturer") {
+    if (user?.role === "company") {
       return [
-        { name: "Manufacturer Home", icon: <Compass className="h-4 w-4" />, href: "/dashboard#/manufacturer" },
-        { name: "Register Batch", icon: <Database className="h-4 w-4" />, href: "/dashboard#/manufacturer/register" },
-        { name: "Batch Inventory", icon: <Building className="h-4 w-4" />, href: "/dashboard#/manufacturer/batches" },
+        { name: "Company Home", icon: <Compass className="h-4 w-4" />, href: "/dashboard#/company" },
+        { name: "Register Batch", icon: <Database className="h-4 w-4" />, href: "/dashboard#/company/register" },
+        { name: "Batch Inventory", icon: <Building className="h-4 w-4" />, href: "/dashboard#/company/batches" },
         ...common,
       ];
     }
 
-    if (user?.role === "regulator") {
+    if (user?.role === "pharmacist") {
       return [
-        { name: "Inspector Overview", icon: <Compass className="h-4 w-4" />, href: "/dashboard#/regulator" },
-        { name: "Incidents Heatmap", icon: <Compass className="h-4 w-4" />, href: "/dashboard#/regulator/heatmap" },
-        { name: "Trend Analysis", icon: <Activity className="h-4 w-4" />, href: "/dashboard#/regulator/trends" },
+        { name: "Pharmacist Portal", icon: <Compass className="h-4 w-4" />, href: "/dashboard#/pharmacist" },
         ...common,
       ];
     }
 
-    if (user?.role === "admin") {
+    if (user?.role === "deliveryman") {
       return [
-        { name: "Admin Dashboard", icon: <Compass className="h-4 w-4" />, href: "/dashboard#/admin" },
-        { name: "User Directory", icon: <UserCheck className="h-4 w-4" />, href: "/dashboard#/admin/users" },
-        { name: "Model Registry", icon: <Shield className="h-4 w-4" />, href: "/dashboard#/admin/models" },
-        { name: "System logs", icon: <Database className="h-4 w-4" />, href: "/dashboard#/admin/logs" },
+        { name: "Delivery Dashboard", icon: <Compass className="h-4 w-4" />, href: "/dashboard#/deliveryman" },
         ...common,
       ];
     }
@@ -71,15 +66,15 @@ export function AppShell({ children, activeTab }: { children: React.ReactNode; a
   }, [user]);
 
   // Fast role swapping helper for easy demoing/judging
-  const handleRoleSwap = async (role: "patient" | "pharmacist" | "manufacturer" | "regulator" | "admin") => {
+  const handleRoleSwap = async (role: "patient" | "pharmacist" | "company" | "deliveryman") => {
     toast.info(`Swapping profile to ${role}...`, "Role Switcher");
-    await login(`${role}@medguard.org`, role);
+    await login(`${role}@medguard.local`, role);
     toast.success(`Success! Swapped session to ${role}.`, "Role Switcher");
     // Redirect based on role to avoid route conflicts
     if (role === "patient") {
       window.location.href = "/verify#/";
     } else if (role === "pharmacist") {
-      window.location.href = "/verify#/qr";
+      window.location.href = "/dashboard#/pharmacist";
     } else {
       window.location.href = `/dashboard#/${role}`;
     }
@@ -147,7 +142,7 @@ export function AppShell({ children, activeTab }: { children: React.ReactNode; a
             Inspect As (Judge Mode)
           </span>
           <div className="grid grid-cols-2 gap-1.5">
-            {(["patient", "pharmacist", "manufacturer", "regulator", "admin"] as const).map((r) => (
+            {(["patient", "pharmacist", "company", "deliveryman"] as const).map((r) => (
               <button
                 key={r}
                 onClick={() => handleRoleSwap(r)}
