@@ -15,7 +15,7 @@ import {
   Zap,
   RefreshCw
 } from "lucide-react";
-import heroArt from "../../assets/hero.png";
+import heroArt from "../../assets/image.png";
 
 export default function Home() {
   const [simStep, setSimStep] = React.useState(0);
