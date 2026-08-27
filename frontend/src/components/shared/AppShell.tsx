@@ -18,6 +18,7 @@ import {
   Building,
   UserCheck,
   Compass,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "../../lib/utils/cn";
 
@@ -34,6 +35,7 @@ export function AppShell({ children, activeTab }: { children: React.ReactNode; a
     const common = [
       { name: "Verify Scan", icon: <ScanLine className="h-4 w-4" />, href: "/verify#/" },
       { name: "Verify Delivery QR", icon: <ScanLine className="h-4 w-4" />, href: "/verify#/qr" },
+      { name: "Medication Guide", icon: <BookOpen className="h-4 w-4" />, href: "/verify#/patient" },
       { name: "Scan History", icon: <Activity className="h-4 w-4" />, href: "/verify#/history" },
       { name: "Track Delivery", icon: <Compass className="h-4 w-4" />, href: "/tracking#/" },
     ];

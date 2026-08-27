@@ -13,7 +13,9 @@ import {
   Search,
   Activity,
   Link as LinkIcon,
-  AlertTriangle
+  AlertTriangle,
+  Barcode,
+  X
 } from "lucide-react";
 
 interface TimelineEvent {
@@ -45,23 +47,42 @@ export default function PharmacistDashboard() {
   const [searching, setSearching] = React.useState(false);
   const [batch, setBatch] = React.useState<BatchDetails | null>(null);
   const [timeline, setTimeline] = React.useState<TimelineEvent[]>([]);
+  const [barcodeOpen, setBarcodeOpen] = React.useState(false);
 
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!batchId.trim()) return;
+  const playBeep = () => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+      gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      oscillator.start();
+      setTimeout(() => {
+        oscillator.stop();
+        audioCtx.close();
+      }, 90);
+    } catch (e) {
+      console.warn("Beep audio failed", e);
+    }
+  };
+
+  const handleVerifyId = async (idToVerify: string) => {
+    if (!idToVerify.trim()) return;
 
     setSearching(true);
     setBatch(null);
     setTimeline([]);
 
     try {
-      // 1. Fetch Batch Info from backend
       const resBatch = await fetch(`/api/v1/batches`);
       if (!resBatch.ok) throw new Error("Failed to search batches");
       const batchesList: BatchDetails[] = await resBatch.json();
       
       const foundBatch = batchesList.find(
-        (b) => b.batchKey.toLowerCase() === batchId.trim().toLowerCase()
+        (b) => b.batchKey.toLowerCase() === idToVerify.trim().toLowerCase()
       );
 
       if (!foundBatch) {
@@ -72,14 +93,12 @@ export default function PharmacistDashboard() {
 
       setBatch(foundBatch);
 
-      // 2. Fetch Transit Log
       const trackingId = `MG-DEL-${foundBatch.batchKey}`;
       const resTimeline = await fetch(`/api/v1/tracking/${trackingId}`);
       if (resTimeline.ok) {
         const data = await resTimeline.json();
         setTimeline(data.items || []);
       } else {
-        // Fallback standard timeline seed if not logged yet
         setTimeline([]);
       }
       
@@ -92,7 +111,20 @@ export default function PharmacistDashboard() {
     }
   };
 
-  // Analyze constraints: check if seal broken or temp > 8°C (insulin/vaccines cold chain)
+  const handleVerify = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleVerifyId(batchId);
+  };
+
+  const handleBarcodeScan = (mockCode: string) => {
+    playBeep();
+    setBatchId(mockCode);
+    setBarcodeOpen(false);
+    toast.success(`Barcode detected: ${mockCode}`, "Scan Successful");
+    handleVerifyId(mockCode);
+  };
+
+  // Check transit constraints: seal broken or temp > 8°C
   const isTempViated = timeline.some((evt) => evt.temperature > 8);
   const maxTemp = timeline.length > 0 ? Math.max(...timeline.map((e) => e.temperature)) : 0;
   const isSealBroken = timeline.some((evt) => !evt.sealIntact);
@@ -102,29 +134,99 @@ export default function PharmacistDashboard() {
       <div>
         <h1 className="text-xl font-bold tracking-tight">Pharmacist Verification Hub</h1>
         <p className="text-xs text-muted-foreground font-medium">
-          Scan or input product batch IDs to audit blockchain hashes, packaging seals, and cold-chain temperature telemetry.
+          Scan product barcodes or input batch IDs to verify authenticity, packaging seals, and temperature logs.
         </p>
       </div>
 
       <Card>
         <CardContent className="pt-6">
-          <form onSubmit={handleVerify} className="flex gap-4">
-            <div className="flex-1">
+          <form onSubmit={handleVerify} className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 flex gap-2">
               <Input
                 required
-                placeholder="Enter Batch ID (e.g. P2B20324)"
+                placeholder="Enter Batch ID (e.g. MG-2026-0041A)"
                 value={batchId}
                 onChange={(e) => setBatchId(e.target.value)}
-                className="h-11"
+                className="h-11 font-mono"
               />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setBarcodeOpen(true)}
+                className="h-11 px-3.5 flex gap-1.5 font-semibold text-muted-foreground border-border hover:text-foreground shrink-0"
+              >
+                <Barcode className="h-5 w-5" />
+                <span>Scan Barcode</span>
+              </Button>
             </div>
-            <Button type="submit" className="h-11 px-6 flex gap-2" isLoading={searching}>
+            <Button type="submit" className="h-11 px-6 flex gap-2 shrink-0" isLoading={searching}>
               <Search className="h-4 w-4" />
               Verify Lot
             </Button>
           </form>
         </CardContent>
       </Card>
+
+      {/* Barcode Scanner View Modal */}
+      {barcodeOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <Card className="max-w-md w-full border-border/80 shadow-2xl">
+            <CardHeader className="flex flex-row items-center justify-between pb-3 border-b border-border/30">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Barcode className="h-5 w-5 text-primary" />
+                Pharmacist Barcode Scanner
+              </CardTitle>
+              <button
+                onClick={() => setBarcodeOpen(false)}
+                className="text-muted-foreground hover:text-foreground p-1 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-5">
+              {/* Animated view finder */}
+              <div className="relative aspect-[16/9] bg-black rounded-lg overflow-hidden border border-border/60 flex items-center justify-center">
+                <div className="text-center p-4 text-[11px] text-slate-400 space-y-2 z-10">
+                  <div className="mx-auto h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  <p>Align package barcode inside the scanner lines...</p>
+                </div>
+                {/* Laser scan line overlay */}
+                <div className="absolute inset-x-0 h-0.5 bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.9)] animate-bounce z-20" style={{ top: "45%" }} />
+              </div>
+
+              {/* Barcode simulation options */}
+              <div className="space-y-2">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
+                  Select Product Barcode (Simulate Camera Scan)
+                </span>
+                <div className="space-y-1.5">
+                  <button
+                    onClick={() => handleBarcodeScan("MG-2026-0041A")}
+                    className="w-full flex items-center justify-between p-2.5 rounded-lg border bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/15 text-xs text-left"
+                  >
+                    <span className="font-semibold text-foreground">Paracip-650 (Paracetamol)</span>
+                    <span className="font-mono text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">MG-2026-0041A</span>
+                  </button>
+                  <button
+                    onClick={() => handleBarcodeScan("MG-2026-0012B")}
+                    className="w-full flex items-center justify-between p-2.5 rounded-lg border bg-rose-500/5 hover:bg-rose-500/10 border-rose-500/15 text-xs text-left"
+                  >
+                    <span className="font-semibold text-foreground">Cardioguard-10 (Amlodipine)</span>
+                    <span className="font-mono text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">MG-2026-0012B</span>
+                  </button>
+                  <button
+                    onClick={() => handleBarcodeScan("MG-2026-EXP99")}
+                    className="w-full flex items-center justify-between p-2.5 rounded-lg border bg-amber-500/5 hover:bg-amber-500/10 border-amber-500/15 text-xs text-left"
+                  >
+                    <span className="font-semibold text-foreground">Ibuprofen-400 (Ibuprofen)</span>
+                    <span className="font-mono text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">MG-2026-EXP99</span>
+                  </button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {batch && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

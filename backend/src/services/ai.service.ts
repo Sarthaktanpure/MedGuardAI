@@ -8,12 +8,26 @@ export interface QRPayload {
   exp?: string;        // Expiry Date
   ing?: string;        // Ingredients
   tx?: string;         // Tx Hash
+  type?: "patient" | "pharmacist";
 }
 
 export async function verifyBatchWithLLM(payload: QRPayload): Promise<string> {
   const apiKey = env.GEMINI_API_KEY;
 
-  const prompt = `You are MedGuardAI, a clinical-grade pretrained LLM auditing medicine shipments. 
+  const prompt = payload.type === "patient"
+    ? `You are MedGuardAI, a clinical-grade medical AI helper. Provide a simple, warm, and highly structured Medication Guide in Markdown for a patient scanning this medicine.
+Analyze this medicine:
+- Name: ${payload.name || "Unknown"}
+- Active Ingredients: ${payload.ing || "Unknown"}
+- Expiry Date: ${payload.exp || "Unknown"}
+- Lot ID: ${payload.key}
+
+In your report, format it with these clear sections using Markdown:
+1. **Dosage & Schedule:** When to take it (e.g. morning, evening), How much (e.g. 1 tablet), and How to take it (e.g. after meals with water).
+2. **Clinical Safety & Warnings:** Side effects, active warnings, and expiry warning.
+3. **Safety Verification:** Reassuring verdict stating if the medicine is verified authentic.
+Keep it extremely clear, simple, and friendly (around 150 words).`
+    : `You are MedGuardAI, a clinical-grade pretrained LLM auditing medicine shipments. 
 Analyze the following QR code audit payload and provide a clinical/integrity analysis report. 
 
 Audit Details:
@@ -66,6 +80,27 @@ function simulateLLMReport(payload: QRPayload): string {
   const isFlagged = payload.key.includes("0012B");
   const isGenuine = payload.key.includes("0041A");
 
+  if (payload.type === "patient") {
+    let statusIcon = "✅";
+    let statusText = "VERIFIED SAFE & GENUINE";
+    if (isFlagged) {
+      statusIcon = "🛑";
+      statusText = "WARNING: RECALLED MEDICINE";
+    } else if (isExpired) {
+      statusIcon = "❌";
+      statusText = "DANGER: EXPIRED MEDICINE";
+    }
+
+    const expDate = payload.exp ? new Date(payload.exp).toLocaleDateString() : "Unknown";
+
+    return `### ${statusIcon} Patient Guide: ${statusText}
+**Medicine:** ${payload.name || "Verified Formula"} (${payload.ing || "Active compound"})
+
+*   **Dosage & Directions:** Take 1 tablet twice daily—once after breakfast and once after dinner. Swallow whole with a glass of water.
+*   **Clinical Safety & Warnings:** ${isExpired ? "DO NOT CONSUME. This medication has expired and is no longer safe." : isFlagged ? "DO NOT CONSUME. This batch was recalled globally due to a manufacturer packaging anomaly." : "May cause mild drowsiness. Avoid alcohol while taking this medicine. Check expiry before taking."}
+*   **Verification Check:** Authenticity verification succeeded. Cryptographic proof-of-lot is anchored securely on the blockchain.`;
+  }
+
   let verdict = "SECURE & VERIFIED";
   let color = "🟢";
   
@@ -80,7 +115,6 @@ function simulateLLMReport(payload: QRPayload): string {
     color = "⚠️";
   }
 
-  const mfgDate = payload.mfg ? new Date(payload.mfg).toLocaleDateString() : "Unknown";
   const expDate = payload.exp ? new Date(payload.exp).toLocaleDateString() : "Unknown";
 
   return `### ${color} MedGuard AI Audit Report: ${verdict}
