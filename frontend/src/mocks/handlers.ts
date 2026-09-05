@@ -439,8 +439,9 @@ export const handlers = [
     }
 
     const isExpired = payload.exp ? new Date(payload.exp) < new Date() : false;
-    const isFlagged = payload.key.includes("0012B") || mockBatches.find(b => b.batchKey === payload.key)?.flagged;
-    const isGenuine = payload.key.includes("0041A") || mockBatches.find(b => b.batchKey === payload.key && !b.flagged);
+    const isFlagged = payload.key.includes("0012B") || payload.key.includes("RECALL") || mockBatches.find(b => b.batchKey === payload.key)?.flagged;
+    const isSuspect = payload.key.includes("0033H") || payload.key.includes("SUSPECT");
+    const isGenuine = !isFlagged && !isSuspect;
 
     let verdict = "SECURE & VERIFIED";
     let color = "🟢";
@@ -451,8 +452,8 @@ export const handlers = [
     } else if (isExpired) {
       verdict = "DANGER: EXPIRED SHIPMENT";
       color = "❌";
-    } else if (!isGenuine && !payload.tx) {
-      verdict = "SUSPECT: NO BLOCKCHAIN FOOTPRINT";
+    } else if (isSuspect) {
+      verdict = "SUSPECT: LOT INTEGRITY AUDIT REQUIRED";
       color = "⚠️";
     }
 

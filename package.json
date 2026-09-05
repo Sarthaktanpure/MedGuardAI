@@ -7,6 +7,7 @@
     "backend"
   ],
   "scripts": {
+    "build": "npm --prefix frontend run build",
     "dev:backend": "npm --prefix backend run dev",
     "dev:web": "npm --prefix frontend run dev",
     "build:backend": "npm --prefix backend run start",

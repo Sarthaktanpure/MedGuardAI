@@ -77,8 +77,9 @@ In your report:
 
 function simulateLLMReport(payload: QRPayload): string {
   const isExpired = payload.exp ? new Date(payload.exp) < new Date() : false;
-  const isFlagged = payload.key.includes("0012B");
-  const isGenuine = payload.key.includes("0041A");
+  const isFlagged = payload.key.includes("0012B") || payload.key.includes("RECALL");
+  const isSuspect = payload.key.includes("0033H") || payload.key.includes("SUSPECT");
+  const isGenuine = !isFlagged && !isSuspect;
 
   if (payload.type === "patient") {
     let statusIcon = "✅";
@@ -89,6 +90,9 @@ function simulateLLMReport(payload: QRPayload): string {
     } else if (isExpired) {
       statusIcon = "❌";
       statusText = "DANGER: EXPIRED MEDICINE";
+    } else if (isSuspect) {
+      statusIcon = "⚠️";
+      statusText = "SUSPECT: LOT INTEGRITY AUDIT REQUIRED";
     }
 
     const expDate = payload.exp ? new Date(payload.exp).toLocaleDateString() : "Unknown";
@@ -97,8 +101,8 @@ function simulateLLMReport(payload: QRPayload): string {
 **Medicine:** ${payload.name || "Verified Formula"} (${payload.ing || "Active compound"})
 
 *   **Dosage & Directions:** Take 1 tablet twice daily—once after breakfast and once after dinner. Swallow whole with a glass of water.
-*   **Clinical Safety & Warnings:** ${isExpired ? "DO NOT CONSUME. This medication has expired and is no longer safe." : isFlagged ? "DO NOT CONSUME. This batch was recalled globally due to a manufacturer packaging anomaly." : "May cause mild drowsiness. Avoid alcohol while taking this medicine. Check expiry before taking."}
-*   **Verification Check:** Authenticity verification succeeded. Cryptographic proof-of-lot is anchored securely on the blockchain.`;
+*   **Clinical Safety & Warnings:** ${isExpired ? "DO NOT CONSUME. This medication has expired and is no longer safe." : isFlagged ? "DO NOT CONSUME. This batch was recalled globally due to a manufacturer packaging anomaly." : isSuspect ? "Exercise caution. Packaging verification requires secondary pharmacist audit." : "May cause mild drowsiness. Avoid alcohol while taking this medicine. Check expiry before taking."}
+*   **Verification Check:** ${isFlagged ? "Flagged on cryptographic ledger as recalled." : "Authenticity verification succeeded. Cryptographic proof-of-lot is anchored securely on the blockchain."}`;
   }
 
   let verdict = "SECURE & VERIFIED";
@@ -110,8 +114,8 @@ function simulateLLMReport(payload: QRPayload): string {
   } else if (isExpired) {
     verdict = "DANGER: EXPIRED SHIPMENT";
     color = "❌";
-  } else if (!isGenuine && !payload.tx) {
-    verdict = "SUSPECT: NO BLOCKCHAIN FOOTPRINT";
+  } else if (isSuspect) {
+    verdict = "SUSPECT: LOT INTEGRITY AUDIT REQUIRED";
     color = "⚠️";
   }
 

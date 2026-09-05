@@ -222,13 +222,59 @@ export default function Scan() {
 
       {/* Batch input card to trigger deterministic results */}
       <Card>
-        <CardContent className="pt-4 flex gap-2">
-          <Input
-            placeholder="Target Batch Key (optional, try MG-2026-0041A)"
-            value={batchKey}
-            onChange={(e) => setBatchKey(e.target.value)}
-            className="font-mono text-xs h-9"
-          />
+        <CardContent className="pt-4 space-y-2.5">
+          <div className="flex gap-2">
+            <Input
+              placeholder="Target Batch Key (optional, try MG-2026-0041A)"
+              value={batchKey}
+              onChange={(e) => setBatchKey(e.target.value)}
+              className="font-mono text-xs h-9"
+            />
+            {batchKey && (
+              <Button size="sm" variant="ghost" onClick={() => setBatchKey("")} className="h-9 px-2 text-xs">
+                Clear
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+            <span className="text-[10px] text-muted-foreground font-semibold">Demo Presets:</span>
+            <button
+              type="button"
+              onClick={() => {
+                setBatchKey("MG-2026-0041A");
+                toast.info("Selected Genuine batch (MG-2026-0041A)", "Demo Mode");
+              }}
+              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                batchKey === "MG-2026-0041A" ? "bg-emerald-500 text-white" : "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+              }`}
+            >
+              ✅ Genuine Batch
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setBatchKey("MG-2026-0033H");
+                toast.info("Selected Suspect batch (MG-2026-0033H)", "Demo Mode");
+              }}
+              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                batchKey === "MG-2026-0033H" ? "bg-amber-500 text-white" : "bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+              }`}
+            >
+              ⚠️ Suspect Batch
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setBatchKey("MG-2026-0012B");
+                toast.info("Selected Recalled batch (MG-2026-0012B)", "Demo Mode");
+              }}
+              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                batchKey === "MG-2026-0012B" ? "bg-rose-500 text-white" : "bg-rose-500/10 text-rose-400 hover:bg-rose-500/20"
+              }`}
+            >
+              🛑 Recalled / Fake
+            </button>
+          </div>
         </CardContent>
       </Card>
 
