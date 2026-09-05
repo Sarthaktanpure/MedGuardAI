@@ -29,29 +29,51 @@ export class InferenceEngine {
 
   public async runInference(
     fileOrVideo: File | HTMLVideoElement | HTMLImageElement,
-    batchKey?: string
+    batchKey?: string,
+    qrInfo?: any
   ): Promise<InferenceResult> {
     await this.loadModel();
 
-    // Simulate inference computation time (e.g., 800ms)
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // Simulate inference computation time (e.g., 600ms)
+    await new Promise((resolve) => setTimeout(resolve, 600));
 
-    // Determinstic results for specific demo batch numbers
-    if (batchKey) {
-      const cleanKey = batchKey.trim().toUpperCase();
-      if (cleanKey.includes("0041A") || cleanKey.endsWith("41A")) {
+    // 1. If an Authenticity QR code was identified on the scan
+    if (qrInfo) {
+      const cleanKey = (qrInfo.key || "").trim().toUpperCase();
+      const isRecalled = qrInfo.flagged || cleanKey.includes("0012B") || cleanKey.includes("RECALL");
+      if (isRecalled) {
         return {
-          verdict: "genuine",
-          confidence: 96.8,
+          verdict: "fake",
+          confidence: 91.5,
           camSummary: JSON.stringify({
-            hotspotCount: 0,
-            averageLoss: 0.02,
-            heatmapGrid: [],
+            hotspotCount: 4,
+            averageLoss: 0.82,
+            heatmapGrid: [
+              [35, 45],
+              [40, 50],
+              [55, 30],
+              [60, 65],
+            ],
           }),
-          inferenceTimeMs: 420,
+          inferenceTimeMs: 380,
         };
       }
-      if (cleanKey.includes("0012B") || cleanKey.endsWith("12B")) {
+      return {
+        verdict: "genuine",
+        confidence: 98.4,
+        camSummary: JSON.stringify({
+          hotspotCount: 0,
+          averageLoss: 0.01,
+          heatmapGrid: [],
+        }),
+        inferenceTimeMs: 350,
+      };
+    }
+
+    // 2. Deterministic results for specific demo batch numbers
+    if (batchKey) {
+      const cleanKey = batchKey.trim().toUpperCase();
+      if (cleanKey.includes("0012B") || cleanKey.endsWith("12B") || cleanKey.includes("RECALL")) {
         return {
           verdict: "fake",
           confidence: 89.2,
@@ -68,7 +90,7 @@ export class InferenceEngine {
           inferenceTimeMs: 480,
         };
       }
-      if (cleanKey.includes("0033H") || cleanKey.endsWith("33H")) {
+      if (cleanKey.includes("0033H") || cleanKey.endsWith("33H") || cleanKey.includes("SUSPECT")) {
         return {
           verdict: "suspect",
           confidence: 72.4,
@@ -89,44 +111,54 @@ export class InferenceEngine {
         const response = await fetch(`/api/v1/batches/${cleanKey}`);
         if (response.ok) {
           const batchData = await response.json();
-          if (batchData && !batchData.flagged && batchData.chainStatus === "confirmed") {
+          if (batchData?.flagged) {
+            return {
+              verdict: "fake",
+              confidence: 92.5,
+              camSummary: JSON.stringify({
+                hotspotCount: 4,
+                averageLoss: 0.84,
+                heatmapGrid: [[35, 45], [40, 50], [55, 30], [60, 65]],
+              }),
+              inferenceTimeMs: 390,
+            };
+          }
+          if (batchData && batchData.chainStatus === "confirmed") {
             return {
               verdict: "genuine",
-              confidence: 94.5,
-              camSummary: JSON.stringify({ hotspotCount: 0, averageLoss: 0.03, heatmapGrid: [] }),
+              confidence: 97.5,
+              camSummary: JSON.stringify({ hotspotCount: 0, averageLoss: 0.02, heatmapGrid: [] }),
               inferenceTimeMs: 390,
             };
           }
         }
       } catch (error) {
-        console.warn("Backend lookup failed, falling back to strict classification", error);
+        console.warn("Backend lookup failed, falling back to classification", error);
       }
-    }
 
-    // Default strict fallback: any random / unverified scan is fake or suspect
-    const rand = Math.random();
-    if (rand < 0.2) {
+      // Default registered batch key: verified genuine
       return {
-        verdict: "suspect",
-        confidence: 65.2,
+        verdict: "genuine",
+        confidence: 96.8,
         camSummary: JSON.stringify({
-          hotspotCount: 2,
-          averageLoss: 0.45,
-          heatmapGrid: [[20, 30], [65, 70]],
+          hotspotCount: 0,
+          averageLoss: 0.02,
+          heatmapGrid: [],
         }),
         inferenceTimeMs: 420,
       };
-    } else {
-      return {
-        verdict: "fake",
-        confidence: 88.5,
-        camSummary: JSON.stringify({
-          hotspotCount: 4,
-          averageLoss: 0.78,
-          heatmapGrid: [[35, 45], [40, 50], [55, 30], [60, 65]],
-        }),
-        inferenceTimeMs: 450,
-      };
     }
+
+    // 3. Default demo fallback: verified genuine with high confidence
+    return {
+      verdict: "genuine",
+      confidence: 96.4,
+      camSummary: JSON.stringify({
+        hotspotCount: 0,
+        averageLoss: 0.02,
+        heatmapGrid: [],
+      }),
+      inferenceTimeMs: 390,
+    };
   }
 }

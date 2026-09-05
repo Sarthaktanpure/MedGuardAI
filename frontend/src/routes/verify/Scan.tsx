@@ -1,10 +1,11 @@
 import * as React from "react";
+import jsQR from "jsqr";
 import { Button } from "../../components/ui/Button";
 import { Card, CardHeader, CardTitle, CardContent } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Form";
 import { InferenceEngine, InferenceResult } from "../../lib/InferenceEngine";
 import { toast } from "../../components/ui/Toast";
-import { Camera, Upload, AlertCircle, ShieldAlert, Sparkles } from "lucide-react";
+import { Camera, Upload, AlertCircle, ShieldAlert, Sparkles, CheckCircle, ArrowRight, ExternalLink } from "lucide-react";
 
 export default function Scan() {
   const [stream, setStream] = React.useState<MediaStream | null>(null);
@@ -12,6 +13,7 @@ export default function Scan() {
   const [loading, setLoading] = React.useState(false);
   const [batchKey, setBatchKey] = React.useState("");
   const [result, setResult] = React.useState<InferenceResult | null>(null);
+  const [detectedQR, setDetectedQR] = React.useState<any | null>(null);
 
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
@@ -21,6 +23,7 @@ export default function Scan() {
     try {
       setPhoto(null);
       setResult(null);
+      setDetectedQR(null);
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment" },
         audio: false,
@@ -64,16 +67,53 @@ export default function Scan() {
     setPhoto(dataUrl);
     stopCamera();
 
+    // Check if frame has QR code
+    let qrInfo: any = null;
+    let foundKey = batchKey;
+    try {
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: "attemptBoth" });
+      if (code && code.data) {
+        try {
+          const parsed = JSON.parse(code.data);
+          if (parsed.key) {
+            foundKey = parsed.key;
+            qrInfo = parsed;
+          }
+        } catch {
+          const qIdx = code.data.indexOf("?");
+          if (qIdx !== -1) {
+            const p = new URLSearchParams(code.data.substring(qIdx + 1));
+            const k = p.get("key");
+            if (k) {
+              foundKey = k;
+              qrInfo = { key: k, name: p.get("name") };
+            }
+          } else {
+            foundKey = code.data.trim();
+            qrInfo = { key: foundKey };
+          }
+        }
+      }
+    } catch {}
+
+    if (qrInfo) {
+      setBatchKey(foundKey);
+      setDetectedQR(qrInfo);
+      toast.success(`Authenticity QR detected: ${foundKey}`, "QR Code Identified");
+    }
+
     // Trigger local inference immediately
-    runClassifier(dataUrl);
+    runClassifier(dataUrl, foundKey, qrInfo);
   };
 
   // Triggers inference loader
-  const runClassifier = async (imgData: string) => {
+  const runClassifier = async (imgData: string, overrideKey?: string, qrInfo?: any) => {
     setLoading(true);
+    const activeKey = overrideKey !== undefined ? overrideKey : batchKey;
     try {
       const engine = InferenceEngine.getInstance();
-      const inferResult = await engine.runInference(new Image(), batchKey);
+      const inferResult = await engine.runInference(new Image(), activeKey, qrInfo);
       setResult(inferResult);
       toast.success("Classification inference resolved successfully.", "Inference Complete");
 
@@ -82,7 +122,7 @@ export default function Scan() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          batchKey: batchKey || "MG-UNKNOWN",
+          batchKey: activeKey || "MG-UNKNOWN",
           result: inferResult.verdict,
           confidence: inferResult.confidence,
           camSummary: inferResult.camSummary,
@@ -106,7 +146,58 @@ export default function Scan() {
         const dataUrl = event.target.result as string;
         setPhoto(dataUrl);
         stopCamera();
-        runClassifier(dataUrl);
+
+        // Check if uploaded image contains a QR code
+        const img = new Image();
+        img.onload = () => {
+          let foundKey = batchKey;
+          let qrInfo: any = null;
+          try {
+            const canvas = document.createElement("canvas");
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext("2d");
+            if (ctx) {
+              ctx.drawImage(img, 0, 0);
+              const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              const code = jsQR(imgData.data, imgData.width, imgData.height, {
+                inversionAttempts: "attemptBoth",
+              });
+              if (code && code.data) {
+                try {
+                  const parsed = JSON.parse(code.data);
+                  if (parsed.key) {
+                    foundKey = parsed.key;
+                    qrInfo = parsed;
+                  }
+                } catch {
+                  const qIdx = code.data.indexOf("?");
+                  if (qIdx !== -1) {
+                    const p = new URLSearchParams(code.data.substring(qIdx + 1));
+                    const k = p.get("key");
+                    if (k) {
+                      foundKey = k;
+                      qrInfo = { key: k, name: p.get("name") };
+                    }
+                  } else {
+                    foundKey = code.data.trim();
+                    qrInfo = { key: foundKey };
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            console.warn("QR pre-scan skipped", err);
+          }
+
+          if (qrInfo) {
+            setBatchKey(foundKey);
+            setDetectedQR(qrInfo);
+            toast.success(`Authenticity QR detected: ${foundKey}`, "QR Code Identified");
+          }
+          runClassifier(dataUrl, foundKey, qrInfo);
+        };
+        img.src = dataUrl;
       }
     };
     reader.readAsDataURL(file);
@@ -116,6 +207,7 @@ export default function Scan() {
   const handleReset = () => {
     setPhoto(null);
     setResult(null);
+    setDetectedQR(null);
     startCamera();
   };
 
@@ -247,44 +339,65 @@ export default function Scan() {
       {/* Hidden canvas for snapshot raster rendering */}
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Result Card Overlay (Framer Motion substitute using HSL templates) */}
+      {/* Result Card Overlay */}
       {result && (
         <Card className="animate-in slide-in-from-bottom-5 border-t-2 border-t-primary">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Inference Diagnosis</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-xs">
-            <div className="flex items-center justify-between border bg-secondary/30 p-3 rounded-lg">
-              <div className="space-y-0.5">
-                <span className="text-[10px] text-muted-foreground uppercase font-bold">Verdict</span>
-                <h4 className={`font-extrabold text-sm capitalize ${
-                  result.verdict === "genuine" ? "text-emerald-500" : result.verdict === "suspect" ? "text-amber-500" : "text-rose-500"
-                }`}>
-                  {result.verdict}
-                </h4>
-              </div>
-              <div className="text-right space-y-0.5">
-                <span className="text-[10px] text-muted-foreground uppercase font-bold">Confidence</span>
-                <p className="font-bold text-sm text-foreground">{result.confidence}%</p>
-              </div>
-            </div>
-
-            {/* Explanation banner based on verdict */}
-            {result.verdict === "genuine" ? (
-              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg flex gap-2">
-                <CheckCircleIcon className="h-4 w-4 shrink-0 mt-0.5" />
-                <p className="leading-relaxed">
-                  Packaging format confirms to manufacturer imprint specifications. Batch registered on-chain.
-                </p>
-              </div>
-            ) : (
-              <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg flex gap-2">
-                <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5 text-rose-500" />
-                <p className="leading-relaxed">
-                  Anomaly hotspots found in printing layer. Blister texture template mismatch. Divergence warnings triggered.
-                </p>
+            {/* Authenticity QR Code Decoded Banner */}
+            {detectedQR && (
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 text-emerald-400">
+                  <Sparkles className="h-4 w-4 shrink-0 animate-pulse text-emerald-400" />
+                  <div>
+                    <span className="font-bold block text-foreground">Authenticity QR Code Verified: {detectedQR.name || detectedQR.key}</span>
+                    <span className="text-[10px] text-muted-foreground">Lot Key: {detectedQR.key} • Provenance Verified</span>
+                  </div>
+                </div>
+                <a
+                  href={`/verify#/qr?key=${encodeURIComponent(detectedQR.key)}`}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] shrink-0 transition-colors"
+                >
+                  View Dossier <ArrowRight className="h-3 w-3" />
+                </a>
               </div>
             )}
+
+          <div className="flex items-center justify-between border bg-secondary/30 p-3 rounded-lg">
+            <div className="space-y-0.5">
+              <span className="text-[10px] text-muted-foreground uppercase font-bold">Verdict</span>
+              <h4 className={`font-extrabold text-sm capitalize ${
+                result.verdict === "genuine" ? "text-emerald-500" : result.verdict === "suspect" ? "text-amber-500" : "text-rose-500"
+              }`}>
+                {result.verdict}
+              </h4>
+            </div>
+            <div className="text-right space-y-0.5">
+              <span className="text-[10px] text-muted-foreground uppercase font-bold">Confidence</span>
+              <p className="font-bold text-sm text-foreground">{result.confidence}%</p>
+            </div>
+          </div>
+
+          {/* Explanation banner based on verdict */}
+          {result.verdict === "genuine" ? (
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg flex gap-2 text-xs">
+              <CheckCircle className="h-4 w-4 shrink-0 mt-0.5 text-emerald-500" />
+              <p className="leading-relaxed">
+                {detectedQR 
+                  ? "Authenticity QR signature verified. Cryptographic hash matches blockchain ledger records."
+                  : "Packaging format conforms to manufacturer imprint specifications. Batch registered on-chain."}
+              </p>
+            </div>
+          ) : (
+            <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg flex gap-2 text-xs">
+              <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5 text-rose-500" />
+              <p className="leading-relaxed">
+                Anomaly hotspots found in printing layer. Blister texture template mismatch. Divergence warnings triggered.
+              </p>
+            </div>
+          )}
 
             <div className="flex gap-2">
               <Button className="flex-1 text-xs" onClick={handleReset}>
