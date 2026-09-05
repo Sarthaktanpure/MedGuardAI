@@ -18,7 +18,10 @@ import {
   Calendar,
   Layers,
   ArrowRight,
-  Info
+  Info,
+  Upload,
+  Zap,
+  Check
 } from "lucide-react";
 
 interface QRPayload {
@@ -37,6 +40,8 @@ export default function QRVerify() {
   const [scanning, setScanning] = React.useState(false);
   const [rawInput, setRawInput] = React.useState("");
   const [activePayload, setActivePayload] = React.useState<QRPayload | null>(null);
+  const [pendingFromStorage, setPendingFromStorage] = React.useState<QRPayload | null>(null);
+  const [detectorActive, setDetectorActive] = React.useState(false);
   
   // Ledger Validation States
   const [ledgerLoading, setLedgerLoading] = React.useState(false);
@@ -51,6 +56,22 @@ export default function QRVerify() {
   const [submittingCheckIn, setSubmittingCheckIn] = React.useState(false);
 
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  // Check for newly generated QR from manufacturer
+  React.useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("medguard_pending_qr");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.key) {
+          setPendingFromStorage(parsed);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   // Initialize camera stream
   const startCamera = async () => {
@@ -86,6 +107,106 @@ export default function QRVerify() {
     startCamera();
     return () => stopCamera();
   }, []);
+
+  // Real-time camera QR detector
+  React.useEffect(() => {
+    let intervalId: any = null;
+    let isMounted = true;
+
+    if (scanning && stream && typeof window !== "undefined" && "BarcodeDetector" in window) {
+      try {
+        const detector = new (window as any).BarcodeDetector({ formats: ["qr_code"] });
+        setDetectorActive(true);
+        intervalId = setInterval(async () => {
+          if (!isMounted || !videoRef.current || videoRef.current.readyState < 2) return;
+          try {
+            const barcodes = await detector.detect(videoRef.current);
+            if (barcodes && barcodes.length > 0) {
+              const raw = barcodes[0].rawValue;
+              try {
+                const parsed = JSON.parse(raw);
+                if (parsed.key) {
+                  toast.success(`Scanned batch: ${parsed.key}`, "QR Code Detected");
+                  loadPayload(parsed);
+                }
+              } catch {
+                toast.success("Scanned QR code", "QR Code Detected");
+                loadPayload({ key: raw.trim() });
+              }
+            }
+          } catch {
+            // frame detection skip
+          }
+        }, 200);
+      } catch (err) {
+        console.warn("BarcodeDetector setup error", err);
+      }
+    } else {
+      setDetectorActive(false);
+    }
+
+    return () => {
+      isMounted = false;
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [scanning, stream]);
+
+  // Image upload handler
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.src = url;
+      await new Promise((res, rej) => {
+        img.onload = res;
+        img.onerror = rej;
+      });
+      if ("BarcodeDetector" in window) {
+        const detector = new (window as any).BarcodeDetector({ formats: ["qr_code"] });
+        const barcodes = await detector.detect(img);
+        URL.revokeObjectURL(url);
+        if (barcodes && barcodes.length > 0) {
+          const raw = barcodes[0].rawValue;
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed.key) {
+              toast.success(`Extracted batch ${parsed.key}`, "QR Found");
+              loadPayload(parsed);
+              return;
+            }
+          } catch {
+            loadPayload({ key: raw.trim() });
+            return;
+          }
+        }
+      }
+      toast.warning("Could not read QR automatically from image. Use manual JSON below.", "Upload Notice");
+    } catch {
+      toast.error("Failed to parse uploaded image.", "Error");
+    }
+  };
+
+  // Clipboard paste handler
+  const handlePasteClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      setRawInput(text);
+      try {
+        const parsed = JSON.parse(text);
+        if (parsed.key) {
+          toast.success("Loaded QR payload from clipboard!", "Parsed");
+          void loadPayload(parsed);
+          return;
+        }
+      } catch {
+        toast.info("Pasted JSON into field. Click Parse Payload to verify.", "Clipboard");
+      }
+    } catch {
+      toast.error("Could not access clipboard.", "Permission Denied");
+    }
+  };
 
   // Trigger cross-referencing and AI audit
   const loadPayload = async (payload: QRPayload) => {
@@ -246,6 +367,31 @@ export default function QRVerify() {
         </p>
       </div>
 
+      {/* Pending QR Banner from Manufacturer */}
+      {pendingFromStorage && !activePayload && (
+        <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-between text-xs animate-in fade-in duration-300">
+          <div className="flex items-center gap-2.5 text-emerald-400">
+            <Sparkles className="h-4 w-4 text-emerald-400 animate-pulse shrink-0" />
+            <div>
+              <span className="font-bold block text-foreground">Active QR Tag from Manufacturer Ready: {pendingFromStorage.name || pendingFromStorage.key}</span>
+              <span className="text-[10px] text-muted-foreground">Lot Key: {pendingFromStorage.key}</span>
+            </div>
+          </div>
+          <Button 
+            size="sm" 
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-8 px-3 shrink-0" 
+            onClick={() => {
+              void loadPayload(pendingFromStorage);
+              sessionStorage.removeItem("medguard_pending_qr");
+              setPendingFromStorage(null);
+            }}
+          >
+            <Zap className="h-3.5 w-3.5 mr-1" />
+            Verify This Batch
+          </Button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         {/* Left Side: Scanner, Inputs & Simulations (5 cols) */}
         <div className="md:col-span-5 space-y-6">
@@ -260,15 +406,23 @@ export default function QRVerify() {
                   className="w-full h-full object-cover scale-x-[-1]"
                 />
                 
+                {/* Live Scanner HUD Status */}
+                <div className="absolute top-3 inset-x-0 flex justify-center z-20">
+                  <span className="bg-black/75 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-medium text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 shadow-lg">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    Live Barcode Reader Active
+                  </span>
+                </div>
+
                 {/* Laser Overlay HUD */}
                 <div className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center">
-                  <div className="w-[60%] h-[60%] border border-primary/50 rounded-lg relative">
+                  <div className="w-[65%] h-[65%] border border-primary/50 rounded-lg relative">
                     <div className="absolute -top-0.5 -left-0.5 w-3 h-3 border-t-2 border-l-2 border-primary" />
                     <div className="absolute -top-0.5 -right-0.5 w-3 h-3 border-t-2 border-r-2 border-primary" />
                     <div className="absolute -bottom-0.5 -left-0.5 w-3 h-3 border-b-2 border-l-2 border-primary" />
                     <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 border-b-2 border-r-2 border-primary" />
                     {/* Sweeping laser */}
-                    <div className="absolute inset-x-0 h-0.5 bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)] animate-[bounce_2s_infinite]" />
+                    <div className="absolute inset-x-0 h-0.5 bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.9)] animate-[bounce_2s_infinite]" />
                   </div>
                 </div>
 
@@ -289,6 +443,26 @@ export default function QRVerify() {
               </div>
             )}
           </Card>
+
+          {/* Quick File Upload Fallback */}
+          <div className="flex gap-2">
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageUpload}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs bg-card/60"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="h-3.5 w-3.5 mr-1.5 text-primary" />
+              Upload QR Image / Screenshot
+            </Button>
+          </div>
 
           {/* Preset Simulations Widget */}
           <Card>
@@ -356,10 +530,16 @@ export default function QRVerify() {
                   placeholder='{"key": "MG-2026-0041A", "name": "Aspirin", "mfr": "Bayer", "exp": "2028-12-01"}'
                   className="w-full h-16 p-2 rounded-lg border bg-secondary/30 font-mono text-[10px] text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 />
-                <Button type="submit" size="sm" className="w-full text-xs">
-                  <Clipboard className="h-3.5 w-3.5 mr-1.5" />
-                  Parse Payload
-                </Button>
+                <div className="flex gap-2">
+                  <Button type="submit" size="sm" className="flex-1 text-xs">
+                    <Clipboard className="h-3.5 w-3.5 mr-1.5" />
+                    Parse Payload
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" className="text-xs" onClick={handlePasteClipboard}>
+                    <Clipboard className="h-3.5 w-3.5 mr-1 text-primary" />
+                    Paste
+                  </Button>
+                </div>
               </form>
             </CardContent>
           </Card>

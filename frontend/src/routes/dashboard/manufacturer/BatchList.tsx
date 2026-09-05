@@ -6,8 +6,8 @@ import { Badge } from "../../../components/ui/Badge";
 import { Button } from "../../../components/ui/Button";
 import { toast } from "../../../components/ui/Toast";
 import { Batch } from "../../../../shared/types";
-import { ShieldAlert, RefreshCw, FileText, QrCode, Printer } from "lucide-react";
-import { QRCodeSVG } from "qrcode.react";
+import { ShieldAlert, RefreshCw, FileText, QrCode, Printer, Download, Maximize2, Minimize2, Copy, Check, ExternalLink } from "lucide-react";
+import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../components/ui/Dialog";
 
 
@@ -15,6 +15,8 @@ export default function BatchList() {
   const queryClient = useQueryClient();
 
   const [selectedBatchForQR, setSelectedBatchForQR] = React.useState<Batch | null>(null);
+  const [isEnlarged, setIsEnlarged] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
   const [qrDetails, setQrDetails] = React.useState({
     name: "Paracetamol 500mg",
     mfr: "Pfizer Dublin Facility",
@@ -28,6 +30,8 @@ export default function BatchList() {
   const handleOpenQRModal = (batch: Batch) => {
     setSelectedBatchForQR(batch);
     setCompiledQRData(null);
+    setIsEnlarged(false);
+    setCopied(false);
     setQrDetails({
       name: "Paracetamol 500mg",
       mfr: "Pfizer Dublin Facility",
@@ -36,6 +40,42 @@ export default function BatchList() {
       ingredients: "Paracetamol Active Compound",
       dosage: "500mg"
     });
+  };
+
+  const handleDownloadQR = () => {
+    const canvas = document.getElementById("qr-export-canvas") as HTMLCanvasElement;
+    if (canvas) {
+      const url = canvas.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `MedGuard-${selectedBatchForQR?.batchKey || "tag"}-HD-QR.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      toast.success("Crystal clear 1024x1024 QR PNG downloaded.", "HD QR Downloaded");
+    } else {
+      toast.error("Could not export QR code canvas.", "Download Failed");
+    }
+  };
+
+  const handleCopyPayload = async () => {
+    if (!compiledQRData) return;
+    try {
+      await navigator.clipboard.writeText(compiledQRData);
+      setCopied(true);
+      toast.success("QR payload copied to clipboard.", "Copied");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Failed to copy payload.", "Clipboard Error");
+    }
+  };
+
+  const handleOpenVerifier = () => {
+    if (compiledQRData) {
+      sessionStorage.setItem("medguard_pending_qr", compiledQRData);
+      window.open("/verify#/qr", "_blank");
+      toast.success("Opening QR Verifier with current payload.", "Opening Scanner");
+    }
   };
 
   const { data: batches, isLoading, refetch } = useQuery<Batch[]>({
@@ -149,8 +189,8 @@ export default function BatchList() {
       )}
 
       {/* Product Authenticity Pass QR Dialog */}
-      <Dialog open={!!selectedBatchForQR} onOpenChange={(open) => { if(!open) { setSelectedBatchForQR(null); setCompiledQRData(null); } }}>
-        <DialogContent className="max-w-md bg-card border border-border rounded-2xl p-6">
+      <Dialog open={!!selectedBatchForQR} onOpenChange={(open) => { if(!open) { setSelectedBatchForQR(null); setCompiledQRData(null); setIsEnlarged(false); } }}>
+        <DialogContent className={compiledQRData && isEnlarged ? "max-w-xl bg-card border border-border rounded-2xl p-6 transition-all duration-200" : "max-w-md bg-card border border-border rounded-2xl p-6 transition-all duration-200"}>
           <DialogHeader>
             <DialogTitle className="text-sm font-bold flex items-center gap-1.5 text-foreground">
               <QrCode className="h-5 w-5 text-primary animate-pulse" />
@@ -247,53 +287,148 @@ export default function BatchList() {
               </Button>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center p-4 space-y-5">
-              {/* Premium Shipping Tag Design */}
+            <div className="flex flex-col items-center justify-center p-2 space-y-4">
+              {/* Hidden 1024x1024 high-resolution canvas for crystal-clear HD download */}
+              <QRCodeCanvas
+                id="qr-export-canvas"
+                value={compiledQRData}
+                size={1024}
+                level="M"
+                includeMargin={true}
+                marginSize={4}
+                style={{ display: "none" }}
+              />
+
+              {/* Tag Container */}
               <div 
-                className="w-full p-5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 text-slate-100 border border-slate-800 shadow-xl space-y-4 flex flex-col items-center"
+                className="w-full p-5 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-950 text-slate-100 border border-slate-800 shadow-2xl space-y-4 flex flex-col items-center"
               >
                 {/* Header info */}
                 <div className="w-full flex justify-between items-center text-[10px] font-mono text-muted-foreground border-b border-slate-800/80 pb-2">
-                  <span>MEDGUARD SECURE TAG</span>
-                  <span className="text-primary font-bold">LOT VERIFIED</span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
+                    MEDGUARD SECURE TAG
+                  </span>
+                  <span className="text-primary font-bold tracking-wide">LOT VERIFIED</span>
                 </div>
 
-                {/* QR Code Canvas */}
-                <div className="p-3 bg-white rounded-xl shadow-lg border border-slate-800">
-                  <QRCodeSVG value={compiledQRData} size={150} level="M" />
+                {/* Ultra-Crisp QR Code Box */}
+                <div className="p-3.5 bg-white rounded-xl shadow-2xl ring-4 ring-white/10 flex flex-col items-center justify-center">
+                  <QRCodeSVG 
+                    value={compiledQRData} 
+                    size={isEnlarged ? 300 : 220} 
+                    level="M" 
+                    includeMargin={true}
+                    marginSize={4}
+                    style={{
+                      shapeRendering: "crispEdges",
+                      imageRendering: "pixelated",
+                      width: isEnlarged ? "300px" : "220px",
+                      height: isEnlarged ? "300px" : "220px",
+                    }}
+                  />
+                  <span className="text-[9px] font-mono font-bold text-slate-500 uppercase tracking-widest pt-1.5">
+                    ISO-18004 High Precision Matrix
+                  </span>
                 </div>
+
+                {/* Live Scanning Hint */}
+                <p className="text-[11px] text-slate-300 font-medium text-center flex items-center gap-1">
+                  📱 Point any phone camera or scanner to verify
+                </p>
 
                 {/* Label stats */}
                 <div className="w-full space-y-1.5 text-center text-xs">
-                  <h4 className="font-extrabold text-sm tracking-tight">{qrDetails.name}</h4>
-                  <p className="font-mono text-[9px] text-muted-foreground bg-slate-900/60 px-2 py-0.5 rounded-full inline-block">
+                  <h4 className="font-extrabold text-sm tracking-tight text-white">{qrDetails.name}</h4>
+                  <p className="font-mono text-[10px] text-emerald-400 bg-emerald-950/50 border border-emerald-800/50 px-2.5 py-0.5 rounded-full inline-block font-semibold">
                     Batch: {selectedBatchForQR?.batchKey}
                   </p>
-                  <div className="grid grid-cols-2 gap-2 text-[9px] text-muted-foreground pt-1.5 text-left border-t border-slate-800/40">
+                  <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-400 pt-2 text-left border-t border-slate-800/60">
                     <div>
-                      <span className="block font-bold">MFG Date:</span>
+                      <span className="block font-bold text-slate-300">MFG Date:</span>
                       <span>{qrDetails.mfgDate}</span>
                     </div>
                     <div>
-                      <span className="block font-bold">EXP Date:</span>
+                      <span className="block font-bold text-slate-300">EXP Date:</span>
                       <span className="text-amber-400 font-bold">{qrDetails.expDate}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex gap-2 w-full pt-1">
+              {/* Action Toolbar */}
+              <div className="grid grid-cols-2 gap-2 w-full pt-1">
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className="flex-1 text-xs"
-                  onClick={() => setCompiledQRData(null)}
+                  className="text-xs h-8"
+                  onClick={() => setIsEnlarged(!isEnlarged)}
                 >
-                  Edit Details
+                  {isEnlarged ? (
+                    <>
+                      <Minimize2 className="h-3.5 w-3.5 mr-1" />
+                      Standard Size
+                    </>
+                  ) : (
+                    <>
+                      <Maximize2 className="h-3.5 w-3.5 mr-1" />
+                      Enlarge View
+                    </>
+                  )}
                 </Button>
+
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-xs h-8"
+                  onClick={handleDownloadQR}
+                >
+                  <Download className="h-3.5 w-3.5 mr-1 text-primary" />
+                  Save HD PNG
+                </Button>
+
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-xs h-8"
+                  onClick={handleCopyPayload}
+                >
+                  {copied ? (
+                    <>
+                      <Check className="h-3.5 w-3.5 mr-1 text-emerald-500" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3.5 w-3.5 mr-1" />
+                      Copy Payload
+                    </>
+                  )}
+                </Button>
+
                 <Button 
                   size="sm" 
-                  className="flex-1 text-xs bg-primary text-primary-foreground font-bold"
+                  className="text-xs h-8 bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                  onClick={handleOpenVerifier}
+                >
+                  <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                  Verify Live
+                </Button>
+              </div>
+
+              <div className="flex gap-2 w-full border-t border-border/40 pt-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="flex-1 text-xs text-muted-foreground"
+                  onClick={() => setCompiledQRData(null)}
+                >
+                  Edit Parameters
+                </Button>
+                <Button 
+                  variant="outline"
+                  size="sm" 
+                  className="flex-1 text-xs"
                   onClick={() => {
                     window.print();
                   }}

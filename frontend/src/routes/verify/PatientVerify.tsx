@@ -13,7 +13,10 @@ import {
   Info,
   Calendar,
   AlertCircle,
-  Play
+  Play,
+  Upload,
+  Zap,
+  Clipboard
 } from "lucide-react";
 
 interface MedicationGuide {
@@ -32,8 +35,25 @@ export default function PatientVerify() {
   const [loading, setLoading] = React.useState(false);
   const [report, setReport] = React.useState("");
   const [typedReport, setTypedReport] = React.useState("");
+  const [pendingFromStorage, setPendingFromStorage] = React.useState<any | null>(null);
 
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  // Check for recently created manufacturer QR
+  React.useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("medguard_pending_qr");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.key) {
+          setPendingFromStorage(parsed);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   // Simulated typing effect for premium look
   const triggerTyping = (text: string) => {
@@ -117,6 +137,105 @@ export default function PatientVerify() {
     }
   };
 
+  // Real-time camera QR reader with BarcodeDetector
+  React.useEffect(() => {
+    let intervalId: any = null;
+    let isMounted = true;
+
+    if (cameraActive && stream && typeof window !== "undefined" && "BarcodeDetector" in window) {
+      try {
+        const detector = new (window as any).BarcodeDetector({ formats: ["qr_code"] });
+        intervalId = setInterval(async () => {
+          if (!isMounted || !videoRef.current || videoRef.current.readyState < 2) return;
+          try {
+            const barcodes = await detector.detect(videoRef.current);
+            if (barcodes && barcodes.length > 0) {
+              const raw = barcodes[0].rawValue;
+              try {
+                const parsed = JSON.parse(raw);
+                if (parsed.key) {
+                  toast.success(`Scanned package: ${parsed.name || parsed.key}`, "QR Detected");
+                  handleVerify({
+                    key: parsed.key,
+                    name: parsed.name || "Verified Medication",
+                    ing: parsed.ing || "Active Formulation",
+                    exp: parsed.exp || "2028-01-01",
+                    flagged: false
+                  });
+                }
+              } catch {
+                toast.success("Scanned QR code", "QR Detected");
+                handleVerify({
+                  key: raw.trim(),
+                  name: "Scanned Medicine",
+                  ing: "Active Formulation",
+                  exp: "2028-01-01"
+                });
+              }
+            }
+          } catch {
+            // frame read skipped
+          }
+        }, 200);
+      } catch (err) {
+        console.warn("BarcodeDetector error", err);
+      }
+    }
+
+    return () => {
+      isMounted = false;
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [cameraActive, stream]);
+
+  // Upload image handler
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.src = url;
+      await new Promise((res, rej) => {
+        img.onload = res;
+        img.onerror = rej;
+      });
+      if ("BarcodeDetector" in window) {
+        const detector = new (window as any).BarcodeDetector({ formats: ["qr_code"] });
+        const barcodes = await detector.detect(img);
+        URL.revokeObjectURL(url);
+        if (barcodes && barcodes.length > 0) {
+          const raw = barcodes[0].rawValue;
+          try {
+            const parsed = JSON.parse(raw);
+            if (parsed.key) {
+              toast.success(`Found medication ${parsed.name || parsed.key}`, "QR Loaded");
+              handleVerify({
+                key: parsed.key,
+                name: parsed.name || "Uploaded Medicine",
+                ing: parsed.ing || "Active Formulation",
+                exp: parsed.exp || "2028-01-01",
+                flagged: false
+              });
+              return;
+            }
+          } catch {
+            handleVerify({
+              key: raw.trim(),
+              name: "Uploaded Medicine",
+              ing: "Active Formulation",
+              exp: "2028-01-01"
+            });
+            return;
+          }
+        }
+      }
+      toast.warning("Could not read QR automatically from image. Try simulations.", "Image Notice");
+    } catch {
+      toast.error("Failed to parse image file.", "Error");
+    }
+  };
+
   const handleSimulate = (type: "genuine" | "recalled" | "expired") => {
     let mockMed: MedicationGuide;
     if (type === "genuine") {
@@ -166,6 +285,37 @@ export default function PatientVerify() {
         </p>
       </div>
 
+      {/* Pending QR Banner from Manufacturer */}
+      {pendingFromStorage && !medicine && (
+        <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-between text-xs animate-in fade-in duration-300">
+          <div className="flex items-center gap-2.5 text-emerald-400">
+            <Sparkles className="h-4 w-4 text-emerald-400 animate-pulse shrink-0" />
+            <div>
+              <span className="font-bold block text-foreground">Manufactured Medication Ready: {pendingFromStorage.name || pendingFromStorage.key}</span>
+              <span className="text-[10px] text-muted-foreground">Lot Key: {pendingFromStorage.key} • {pendingFromStorage.ing || "Composition verified"}</span>
+            </div>
+          </div>
+          <Button 
+            size="sm" 
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-8 px-3 shrink-0" 
+            onClick={() => {
+              handleVerify({
+                key: pendingFromStorage.key,
+                name: pendingFromStorage.name || "Verified Medication",
+                ing: pendingFromStorage.ing || "Active Formulation",
+                exp: pendingFromStorage.exp || "2028-01-01",
+                flagged: false
+              });
+              sessionStorage.removeItem("medguard_pending_qr");
+              setPendingFromStorage(null);
+            }}
+          >
+            <Zap className="h-3.5 w-3.5 mr-1" />
+            Load Guide Now
+          </Button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
         {/* Left Side: QR Scanner View & Mock Prescriptions */}
         <div className="md:col-span-5 space-y-6">
@@ -179,6 +329,15 @@ export default function PatientVerify() {
                   playsInline
                   className="w-full h-full object-cover scale-x-[-1]"
                 />
+
+                {/* Live Scanner HUD Status */}
+                <div className="absolute top-3 inset-x-0 flex justify-center z-20">
+                  <span className="bg-black/75 backdrop-blur-md px-2.5 py-1 rounded-full text-[10px] font-medium text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 shadow-lg">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    Live Barcode Scanner Active
+                  </span>
+                </div>
+
                 <div className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center">
                   <div className="w-[60%] h-[60%] border border-primary/50 rounded-lg relative">
                     <div className="absolute -top-0.5 -left-0.5 w-3 h-3 border-t-2 border-l-2 border-primary" />
@@ -205,6 +364,26 @@ export default function PatientVerify() {
               </div>
             )}
           </Card>
+
+          {/* Quick File Upload Fallback */}
+          <div className="flex gap-2">
+            <input
+              type="file"
+              ref={fileInputRef}
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageUpload}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs bg-card/60"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="h-3.5 w-3.5 mr-1.5 text-primary" />
+              Upload Package QR Photo
+            </Button>
+          </div>
 
           {/* Patient Demo Simulations */}
           <Card>
