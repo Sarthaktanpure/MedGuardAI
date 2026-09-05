@@ -9,6 +9,7 @@ import { Batch } from "../../../../shared/types";
 import { ShieldAlert, RefreshCw, FileText, QrCode, Printer, Download, Maximize2, Minimize2, Copy, Check, ExternalLink } from "lucide-react";
 import { QRCodeSVG, QRCodeCanvas } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../../components/ui/Dialog";
+import { cn } from "../../../lib/utils/cn";
 
 
 export default function BatchList() {
@@ -17,6 +18,7 @@ export default function BatchList() {
   const [selectedBatchForQR, setSelectedBatchForQR] = React.useState<Batch | null>(null);
   const [isEnlarged, setIsEnlarged] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
+  const [qrFormat, setQrFormat] = React.useState<"url" | "json">("url");
   const [qrDetails, setQrDetails] = React.useState({
     name: "Paracetamol 500mg",
     mfr: "Pfizer Dublin Facility",
@@ -32,6 +34,7 @@ export default function BatchList() {
     setCompiledQRData(null);
     setIsEnlarged(false);
     setCopied(false);
+    setQrFormat("url");
     setQrDetails({
       name: "Paracetamol 500mg",
       mfr: "Pfizer Dublin Facility",
@@ -41,6 +44,24 @@ export default function BatchList() {
       dosage: "500mg"
     });
   };
+
+  const qrValueToRender = React.useMemo(() => {
+    if (!selectedBatchForQR || !compiledQRData) return "";
+    if (qrFormat === "url") {
+      const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:5173";
+      const params = new URLSearchParams({
+        key: selectedBatchForQR.batchKey,
+        name: qrDetails.name,
+        mfr: qrDetails.mfr,
+        mfg: qrDetails.mfgDate,
+        exp: qrDetails.expDate,
+        ing: `${qrDetails.ingredients} (${qrDetails.dosage})`,
+        tx: selectedBatchForQR.chainTxHash || ""
+      });
+      return `${origin}/verify#/qr?${params.toString()}`;
+    }
+    return compiledQRData;
+  }, [selectedBatchForQR, compiledQRData, qrFormat, qrDetails]);
 
   const handleDownloadQR = () => {
     const canvas = document.getElementById("qr-export-canvas") as HTMLCanvasElement;
@@ -59,11 +80,12 @@ export default function BatchList() {
   };
 
   const handleCopyPayload = async () => {
-    if (!compiledQRData) return;
+    const textToCopy = qrValueToRender || compiledQRData;
+    if (!textToCopy) return;
     try {
-      await navigator.clipboard.writeText(compiledQRData);
+      await navigator.clipboard.writeText(textToCopy);
       setCopied(true);
-      toast.success("QR payload copied to clipboard.", "Copied");
+      toast.success(qrFormat === "url" ? "Verification URL copied to clipboard." : "QR JSON copied to clipboard.", "Copied");
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error("Failed to copy payload.", "Clipboard Error");
@@ -288,10 +310,38 @@ export default function BatchList() {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center p-2 space-y-4">
+              {/* Format Mode Selector (Phone Web Link vs Raw JSON) */}
+              <div className="flex bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-xs w-full max-w-[300px] shadow-md">
+                <button
+                  type="button"
+                  onClick={() => setQrFormat("url")}
+                  className={cn(
+                    "flex-1 py-1.5 px-2.5 rounded-lg font-bold text-[11px] transition-all flex items-center justify-center gap-1.5",
+                    qrFormat === "url"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  📱 Phone Link
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQrFormat("json")}
+                  className={cn(
+                    "flex-1 py-1.5 px-2.5 rounded-lg font-bold text-[11px] transition-all flex items-center justify-center gap-1.5",
+                    qrFormat === "json"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  📦 Raw JSON Data
+                </button>
+              </div>
+
               {/* Hidden 1024x1024 high-resolution canvas for crystal-clear HD download */}
               <QRCodeCanvas
                 id="qr-export-canvas"
-                value={compiledQRData}
+                value={qrValueToRender || compiledQRData}
                 size={1024}
                 level="M"
                 includeMargin={true}
@@ -315,7 +365,7 @@ export default function BatchList() {
                 {/* Ultra-Crisp QR Code Box */}
                 <div className="p-3.5 bg-white rounded-xl shadow-2xl ring-4 ring-white/10 flex flex-col items-center justify-center">
                   <QRCodeSVG 
-                    value={compiledQRData} 
+                    value={qrValueToRender || compiledQRData} 
                     size={isEnlarged ? 300 : 220} 
                     level="M" 
                     includeMargin={true}
@@ -328,13 +378,15 @@ export default function BatchList() {
                     }}
                   />
                   <span className="text-[9px] font-mono font-bold text-slate-500 uppercase tracking-widest pt-1.5">
-                    ISO-18004 High Precision Matrix
+                    {qrFormat === "url" ? "Direct Web Link (Phone Compatible)" : "ISO-18004 Raw Payload"}
                   </span>
                 </div>
 
                 {/* Live Scanning Hint */}
                 <p className="text-[11px] text-slate-300 font-medium text-center flex items-center gap-1">
-                  📱 Point any phone camera or scanner to verify
+                  {qrFormat === "url" 
+                    ? "📱 Point phone camera to open verification link" 
+                    : "⚡ Ready for MedGuard scanner or hardware reader"}
                 </p>
 
                 {/* Label stats */}

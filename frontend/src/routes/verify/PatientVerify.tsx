@@ -1,4 +1,5 @@
 import * as React from "react";
+import jsQR from "jsqr";
 import { Card, CardHeader, CardTitle, CardContent } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Form";
@@ -27,6 +28,34 @@ interface MedicationGuide {
   flagged?: boolean;
 }
 
+// Universal QR payload parser
+function parseQRPayload(raw: string): any {
+  const trimmed = raw.trim();
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (parsed.key) return parsed;
+  } catch {}
+
+  try {
+    const queryIdx = trimmed.indexOf("?");
+    if (queryIdx !== -1) {
+      const params = new URLSearchParams(trimmed.substring(queryIdx + 1));
+      const key = params.get("key") || params.get("batch");
+      if (key) {
+        return {
+          key,
+          name: params.get("name") || "Verified Medication",
+          ing: params.get("ing") || "Active Formulation",
+          exp: params.get("exp") || "2028-01-01",
+          flagged: false,
+        };
+      }
+    }
+  } catch {}
+
+  return { key: trimmed, name: "Verified Medication", ing: "Active Formulation", exp: "2028-01-01" };
+}
+
 export default function PatientVerify() {
   const [stream, setStream] = React.useState<MediaStream | null>(null);
   const [cameraActive, setCameraActive] = React.useState(false);
@@ -39,20 +68,31 @@ export default function PatientVerify() {
 
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const scanCanvasRef = React.useRef<HTMLCanvasElement | null>(null);
 
-  // Check for recently created manufacturer QR
+  // Check URL query parameters and pending QR from manufacturer
   React.useEffect(() => {
+    // 1. Check if URL has ?key=
+    const fullHref = window.location.href;
+    if (fullHref.includes("key=")) {
+      const parsed = parseQRPayload(fullHref);
+      if (parsed.key) {
+        toast.success(`Loaded prescription guide: ${parsed.name || parsed.key}`, "QR Scan Detected");
+        void handleVerify(parsed);
+        return;
+      }
+    }
+
+    // 2. Check sessionStorage
     try {
       const stored = sessionStorage.getItem("medguard_pending_qr");
       if (stored) {
-        const parsed = JSON.parse(stored);
+        const parsed = parseQRPayload(stored);
         if (parsed.key) {
           setPendingFromStorage(parsed);
         }
       }
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, []);
 
   // Simulated typing effect for premium look
@@ -137,58 +177,80 @@ export default function PatientVerify() {
     }
   };
 
-  // Real-time camera QR reader with BarcodeDetector
+  // Universal real-time camera QR reader (powered by jsQR)
   React.useEffect(() => {
     let intervalId: any = null;
-    let isMounted = true;
+    let isScanning = false;
 
-    if (cameraActive && stream && typeof window !== "undefined" && "BarcodeDetector" in window) {
-      try {
-        const detector = new (window as any).BarcodeDetector({ formats: ["qr_code"] });
-        intervalId = setInterval(async () => {
-          if (!isMounted || !videoRef.current || videoRef.current.readyState < 2) return;
-          try {
-            const barcodes = await detector.detect(videoRef.current);
-            if (barcodes && barcodes.length > 0) {
-              const raw = barcodes[0].rawValue;
+    if (cameraActive && stream) {
+      if (!scanCanvasRef.current) {
+        scanCanvasRef.current = document.createElement("canvas");
+      }
+      const canvas = scanCanvasRef.current;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+      intervalId = setInterval(async () => {
+        if (isScanning || !videoRef.current || videoRef.current.readyState < 2) return;
+        isScanning = true;
+        try {
+          const video = videoRef.current;
+          if (video.videoWidth > 0 && video.videoHeight > 0 && ctx) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            
+            // 1. jsQR Engine
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+              inversionAttempts: "attemptBoth",
+            });
+            if (code && code.data) {
+              const parsed = parseQRPayload(code.data);
+              toast.success(`Scanned package: ${parsed.name || parsed.key}`, "QR Detected");
+              void handleVerify({
+                key: parsed.key,
+                name: parsed.name || "Verified Medication",
+                ing: parsed.ing || "Active Formulation",
+                exp: parsed.exp || "2028-01-01",
+                flagged: parsed.flagged || false,
+              });
+              return;
+            }
+
+            // 2. BarcodeDetector fallback
+            if ("BarcodeDetector" in window) {
               try {
-                const parsed = JSON.parse(raw);
-                if (parsed.key) {
+                const detector = new (window as any).BarcodeDetector({ formats: ["qr_code"] });
+                const barcodes = await detector.detect(canvas);
+                if (barcodes && barcodes.length > 0) {
+                  const parsed = parseQRPayload(barcodes[0].rawValue);
                   toast.success(`Scanned package: ${parsed.name || parsed.key}`, "QR Detected");
-                  handleVerify({
+                  void handleVerify({
                     key: parsed.key,
                     name: parsed.name || "Verified Medication",
                     ing: parsed.ing || "Active Formulation",
                     exp: parsed.exp || "2028-01-01",
-                    flagged: false
+                    flagged: false,
                   });
+                  return;
                 }
-              } catch {
-                toast.success("Scanned QR code", "QR Detected");
-                handleVerify({
-                  key: raw.trim(),
-                  name: "Scanned Medicine",
-                  ing: "Active Formulation",
-                  exp: "2028-01-01"
-                });
-              }
+              } catch {}
             }
-          } catch {
-            // frame read skipped
           }
-        }, 200);
-      } catch (err) {
-        console.warn("BarcodeDetector error", err);
-      }
+        } catch {
+          // frame skipped
+        } finally {
+          isScanning = false;
+        }
+      }, 120);
     }
 
     return () => {
-      isMounted = false;
       if (intervalId) clearInterval(intervalId);
     };
   }, [cameraActive, stream]);
 
-  // Upload image handler
+  // Upload image handler using jsQR
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -200,34 +262,28 @@ export default function PatientVerify() {
         img.onload = res;
         img.onerror = rej;
       });
-      if ("BarcodeDetector" in window) {
-        const detector = new (window as any).BarcodeDetector({ formats: ["qr_code"] });
-        const barcodes = await detector.detect(img);
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "attemptBoth",
+        });
         URL.revokeObjectURL(url);
-        if (barcodes && barcodes.length > 0) {
-          const raw = barcodes[0].rawValue;
-          try {
-            const parsed = JSON.parse(raw);
-            if (parsed.key) {
-              toast.success(`Found medication ${parsed.name || parsed.key}`, "QR Loaded");
-              handleVerify({
-                key: parsed.key,
-                name: parsed.name || "Uploaded Medicine",
-                ing: parsed.ing || "Active Formulation",
-                exp: parsed.exp || "2028-01-01",
-                flagged: false
-              });
-              return;
-            }
-          } catch {
-            handleVerify({
-              key: raw.trim(),
-              name: "Uploaded Medicine",
-              ing: "Active Formulation",
-              exp: "2028-01-01"
-            });
-            return;
-          }
+        if (code && code.data) {
+          const parsed = parseQRPayload(code.data);
+          toast.success(`Found medication: ${parsed.name || parsed.key}`, "QR Loaded");
+          void handleVerify({
+            key: parsed.key,
+            name: parsed.name || "Uploaded Medicine",
+            ing: parsed.ing || "Active Formulation",
+            exp: parsed.exp || "2028-01-01",
+            flagged: false,
+          });
+          return;
         }
       }
       toast.warning("Could not read QR automatically from image. Try simulations.", "Image Notice");

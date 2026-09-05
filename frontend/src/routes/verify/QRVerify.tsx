@@ -1,4 +1,5 @@
 import * as React from "react";
+import jsQR from "jsqr";
 import { Button } from "../../components/ui/Button";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Form";
@@ -34,6 +35,41 @@ interface QRPayload {
   tx?: string;         // Tx Hash
 }
 
+// Universal QR payload parser: parses JSON, query parameters, URLs, or raw keys
+function parseQRPayload(raw: string): QRPayload {
+  const trimmed = raw.trim();
+  
+  // 1. Try parsing JSON
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (parsed.key) return parsed;
+  } catch {}
+
+  // 2. Try parsing URL query parameters (e.g., http://.../verify#/qr?key=... or ?key=...)
+  try {
+    const queryIdx = trimmed.indexOf("?");
+    if (queryIdx !== -1) {
+      const queryString = trimmed.substring(queryIdx + 1);
+      const params = new URLSearchParams(queryString);
+      const key = params.get("key") || params.get("batch");
+      if (key) {
+        return {
+          key,
+          name: params.get("name") || undefined,
+          mfr: params.get("mfr") || undefined,
+          mfg: params.get("mfg") || undefined,
+          exp: params.get("exp") || undefined,
+          ing: params.get("ing") || undefined,
+          tx: params.get("tx") || undefined,
+        };
+      }
+    }
+  } catch {}
+
+  // 3. Fallback: string itself is the batch key
+  return { key: trimmed };
+}
+
 export default function QRVerify() {
   const { user } = useAuthStore();
   const [stream, setStream] = React.useState<MediaStream | null>(null);
@@ -57,20 +93,31 @@ export default function QRVerify() {
 
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const scanCanvasRef = React.useRef<HTMLCanvasElement | null>(null);
 
-  // Check for newly generated QR from manufacturer
+  // Check URL query parameters and pending QR from manufacturer
   React.useEffect(() => {
+    // 1. Check if URL has ?key= (e.g. scanned directly by phone camera)
+    const fullHref = window.location.href;
+    if (fullHref.includes("key=")) {
+      const payload = parseQRPayload(fullHref);
+      if (payload.key) {
+        toast.success(`Loaded QR for batch: ${payload.name || payload.key}`, "URL Scan Detected");
+        void loadPayload(payload);
+        return;
+      }
+    }
+
+    // 2. Check sessionStorage
     try {
       const stored = sessionStorage.getItem("medguard_pending_qr");
       if (stored) {
-        const parsed = JSON.parse(stored);
+        const parsed = parseQRPayload(stored);
         if (parsed.key) {
           setPendingFromStorage(parsed);
         }
       }
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, []);
 
   // Initialize camera stream
@@ -108,50 +155,71 @@ export default function QRVerify() {
     return () => stopCamera();
   }, []);
 
-  // Real-time camera QR detector
+  // Universal real-time QR scanner (powered by jsQR + BarcodeDetector fallback)
   React.useEffect(() => {
     let intervalId: any = null;
-    let isMounted = true;
+    let isScanning = false;
 
-    if (scanning && stream && typeof window !== "undefined" && "BarcodeDetector" in window) {
-      try {
-        const detector = new (window as any).BarcodeDetector({ formats: ["qr_code"] });
-        setDetectorActive(true);
-        intervalId = setInterval(async () => {
-          if (!isMounted || !videoRef.current || videoRef.current.readyState < 2) return;
-          try {
-            const barcodes = await detector.detect(videoRef.current);
-            if (barcodes && barcodes.length > 0) {
-              const raw = barcodes[0].rawValue;
-              try {
-                const parsed = JSON.parse(raw);
-                if (parsed.key) {
-                  toast.success(`Scanned batch: ${parsed.key}`, "QR Code Detected");
-                  loadPayload(parsed);
-                }
-              } catch {
-                toast.success("Scanned QR code", "QR Code Detected");
-                loadPayload({ key: raw.trim() });
-              }
-            }
-          } catch {
-            // frame detection skip
-          }
-        }, 200);
-      } catch (err) {
-        console.warn("BarcodeDetector setup error", err);
+    if (scanning && stream) {
+      setDetectorActive(true);
+      if (!scanCanvasRef.current) {
+        scanCanvasRef.current = document.createElement("canvas");
       }
+      const canvas = scanCanvasRef.current;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+      intervalId = setInterval(async () => {
+        if (isScanning || !videoRef.current || videoRef.current.readyState < 2) return;
+        isScanning = true;
+        try {
+          const video = videoRef.current;
+          if (video.videoWidth > 0 && video.videoHeight > 0 && ctx) {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            
+            // 1. jsQR Engine (100% reliable across all browsers)
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+              inversionAttempts: "attemptBoth",
+            });
+            if (code && code.data) {
+              const payload = parseQRPayload(code.data);
+              toast.success(`Scanned: ${payload.name || payload.key}`, "QR Detected");
+              void loadPayload(payload);
+              return;
+            }
+
+            // 2. Native BarcodeDetector (fast hardware acceleration if supported)
+            if ("BarcodeDetector" in window) {
+              try {
+                const detector = new (window as any).BarcodeDetector({ formats: ["qr_code"] });
+                const barcodes = await detector.detect(canvas);
+                if (barcodes && barcodes.length > 0) {
+                  const payload = parseQRPayload(barcodes[0].rawValue);
+                  toast.success(`Scanned: ${payload.name || payload.key}`, "QR Detected");
+                  void loadPayload(payload);
+                  return;
+                }
+              } catch {}
+            }
+          }
+        } catch {
+          // frame skipped
+        } finally {
+          isScanning = false;
+        }
+      }, 120);
     } else {
       setDetectorActive(false);
     }
 
     return () => {
-      isMounted = false;
       if (intervalId) clearInterval(intervalId);
     };
   }, [scanning, stream]);
 
-  // Image upload handler
+  // Image upload handler using jsQR
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -163,26 +231,25 @@ export default function QRVerify() {
         img.onload = res;
         img.onerror = rej;
       });
-      if ("BarcodeDetector" in window) {
-        const detector = new (window as any).BarcodeDetector({ formats: ["qr_code"] });
-        const barcodes = await detector.detect(img);
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "attemptBoth",
+        });
         URL.revokeObjectURL(url);
-        if (barcodes && barcodes.length > 0) {
-          const raw = barcodes[0].rawValue;
-          try {
-            const parsed = JSON.parse(raw);
-            if (parsed.key) {
-              toast.success(`Extracted batch ${parsed.key}`, "QR Found");
-              loadPayload(parsed);
-              return;
-            }
-          } catch {
-            loadPayload({ key: raw.trim() });
-            return;
-          }
+        if (code && code.data) {
+          const payload = parseQRPayload(code.data);
+          toast.success(`Extracted batch: ${payload.key}`, "QR Code Found");
+          void loadPayload(payload);
+          return;
         }
       }
-      toast.warning("Could not read QR automatically from image. Use manual JSON below.", "Upload Notice");
+      toast.warning("Could not automatically locate QR code in this image. Use manual JSON below.", "Upload Notice");
     } catch {
       toast.error("Failed to parse uploaded image.", "Error");
     }
@@ -193,15 +260,12 @@ export default function QRVerify() {
     try {
       const text = await navigator.clipboard.readText();
       setRawInput(text);
-      try {
-        const parsed = JSON.parse(text);
-        if (parsed.key) {
-          toast.success("Loaded QR payload from clipboard!", "Parsed");
-          void loadPayload(parsed);
-          return;
-        }
-      } catch {
-        toast.info("Pasted JSON into field. Click Parse Payload to verify.", "Clipboard");
+      const parsed = parseQRPayload(text);
+      if (parsed.key) {
+        toast.success(`Loaded QR payload for batch: ${parsed.key}`, "Clipboard Parsed");
+        void loadPayload(parsed);
+      } else {
+        toast.info("Pasted text into field. Click Parse Payload to verify.", "Clipboard");
       }
     } catch {
       toast.error("Could not access clipboard.", "Permission Denied");
@@ -308,19 +372,20 @@ export default function QRVerify() {
     void loadPayload(payload);
   };
 
-  // Handle manual JSON input
+  // Handle manual input (accepts JSON, URL with parameters, or raw batch key)
   const handleManualInput = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!rawInput.trim()) return;
     try {
-      const parsed = JSON.parse(rawInput);
+      const parsed = parseQRPayload(rawInput);
       if (!parsed.key) {
-        toast.error("JSON payload must contain a 'key' field.", "Invalid Format");
+        toast.error("Payload must specify a valid batch key.", "Invalid Input");
         return;
       }
       void loadPayload(parsed);
       setRawInput("");
     } catch {
-      toast.error("Invalid JSON format. Check brackets and keys.", "Parsing Error");
+      toast.error("Invalid format. Please enter a valid batch key, JSON, or URL.", "Parsing Error");
     }
   };
 
