@@ -13,7 +13,6 @@ export const authenticate: RequestHandler = (req, _res, next) => {
   if (!token) {
     return next(new HttpError(401, "UNAUTHORIZED", "Missing access token"));
   }
-
   try {
     req.user = verifyAccessToken(token);
     next();

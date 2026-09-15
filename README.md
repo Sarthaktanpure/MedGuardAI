@@ -645,6 +645,24 @@ Documents the ML direction, intended model usage, evaluation expectations, and c
 
 ---
 
+🔗 Key Project Resources & Links
+
+The following key technologies, APIs, frameworks, and platforms power the MedGuardAI ecosystem:
+
+Category | Resource / Tool | Role in MedGuardAI | Official Link
+---|---|---|---
+🤖 Generative AI | Google Gemini 1.5 Flash API | Generates clinical patient medication guides, audits lot integrity, and verifies ingredients | [ai.google.dev](https://ai.google.dev/)
+🧠 Edge AI / ML | ONNX Runtime Web | Powers offline-first, client-side neural network inference in the browser without server latency | [onnxruntime.ai](https://onnxruntime.ai/)
+⛓️ Blockchain | Polygon Network (Amoy Testnet) | Decentralized immutable ledger for tracking medicine batch provenance and anti-tampering anchors | [polygon.technology](https://polygon.technology/)
+🔨 Smart Contracts | Hardhat Framework | EVM development environment used to compile, test, and deploy Solidity smart contracts | [hardhat.org](https://hardhat.org/)
+🍃 Database | MongoDB & Mongoose | NoSQL document database used to store batch lifecycle, shipment checkpoints, and scan logs | [mongodb.com](https://www.mongodb.com/)
+📷 Vision & Scanning | jsQR Library | Real-time JavaScript QR-code reading engine directly processing camera video feeds | [github.com/cozmo/jsQR](https://github.com/cozmo/jsQR)
+⚛️ Frontend UI | React 19 & Vite | Core UI library and build tool for high-performance rendering, dashboards, and PWA support | [react.dev](https://react.dev/) / [vite.dev](https://vite.dev/)
+☁️ Hosting & CI/CD | Vercel Platform | Production cloud hosting and edge deployment for the MedGuardAI web application | [vercel.com](https://vercel.com/)
+📦 Source Code | GitHub Project Repository | Central monorepo containing backend, frontend, smart contracts, and architecture docs | [github.com/Sarthaktanpure/MedGuardAI](https://github.com/Sarthaktanpure/MedGuardAI)
+
+---
+
 🧠 ML Development Roadmap
 
 The planned machine-learning pipeline is:

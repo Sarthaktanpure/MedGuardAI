@@ -13,5 +13,5 @@
 **/coverage/
 *.sqlite3
 *.db
-!.env.example
-
+.env.example
+.env
